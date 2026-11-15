@@ -114,7 +114,7 @@ The button of the session you are in now is framed. If a session or program was 
 <details>
 <summary><b>Agent roles above the icon</b></summary>
 
-If a session's folder is a role folder such as `my-project/06 Roles/dev` (a numbered `NN Roles` folder), Tapswitch shows the project as the caption and the role above the icon, with an icon for the role. This follows the agent workflow from [tutor.diworld.pro](https://tutor.diworld.pro).
+If a session's folder is a role folder such as `my-project/06 Roles/dev` (a numbered `NN Roles` folder), Tapswitch shows the project as the caption and the role above the icon, with an icon for the role.
 </details>
 
 <details>
