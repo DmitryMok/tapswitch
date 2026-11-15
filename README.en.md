@@ -106,7 +106,7 @@ For [herdr](https://github.com/ogulcancelik/herdr) sessions, both in Windows and
 - **ready:** the caption shows `✓ claude`, `✓ codex`, ….
 
 <p align="center">
-  <img src="docs/images/demo/status_en.gif" alt="Agent status: working, then done" width="75%">
+  <img src="docs/images/demo/status_en.gif" alt="Agent status: working, waiting for you, done" width="75%">
 </p>
 
 The button of the session you are in now is framed. If a session or program was closed, the button shows that too. After a reboot, Tapswitch finds the sessions again on its own.
