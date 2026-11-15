@@ -17,9 +17,11 @@
 
 ## Quick start
 
-1. Download `tapswitch.exe` from [Releases](../../releases/latest) and run it.
-2. The control page opens in your browser. Scan the QR code with your phone.
-3. Switch to any window, then tap an empty button on the phone. Done.
+1. Download [tapswitch.exe](https://github.com/DmitryMok/tapswitch/releases/latest/download/tapswitch.exe) and run it.
+2. The control page opens in your browser. Scan the QR code with your phone, and the button panel opens on the phone.
+3. **Assign a window to a button.** On the computer, switch to the program you want to come back to quickly (an editor, a terminal with an agent, Obsidian…). While its window is active, tap an empty button on the phone and confirm. The button remembers that window.
+4. **Switch.** Now, from any other window, tap that button and the computer switches to the remembered window. Fill the other buttons the same way.
+5. *Optional:* to put browser tabs on buttons, [install the extension](#browser-extension-for-tabs). It takes a minute.
 
 The phone and the computer must be on the same Wi-Fi network.
 
@@ -31,12 +33,24 @@ The phone and the computer must be on the same Wi-Fi network.
 >
 > You can also build the exe yourself from this source (see [Building](#building)).
 
+## Browser extension for tabs
+
+You only need it to put individual browser tabs on buttons. Program windows, agent sessions and key combinations work without it. The extension is not in browser stores; you install it manually, once per browser:
+
+1. Download [tapswitch-browser-extension.zip](https://github.com/DmitryMok/tapswitch/releases/latest/download/tapswitch-browser-extension.zip) and unpack it to a permanent folder, e.g. `%LOCALAPPDATA%\Tapswitch`. The browser loads the extension from this folder on every start, so don't delete or move it.
+2. Open `chrome://extensions` (`edge://extensions`, `opera://extensions`, …) and turn on **Developer mode**.
+3. Click **Load unpacked** and select the `browser_extension` folder.
+
+A tab is assigned the same way as a window: open it in the browser and tap an empty button on the phone.
+
+Works with any Chromium 116+ browser (Chrome, Edge, Opera, Brave, Vivaldi, Comet). The extension connects only to `127.0.0.1` and sends the list of open tabs to Tapswitch. Details are in [app/browser_extension/README.md](app/browser_extension/README.md) (in Russian).
+
 ## What can a button open?
 
 | Button | How to set it |
 |---|---|
-| Any program window | Switch to the window, then tap an empty button |
-| Browser tab (Chrome, Edge, Opera, Brave, …) | Install the browser extension (see below) |
+| Any program window | Make the window active on the computer, then tap an empty button |
+| Browser tab (Chrome, Edge, Opera, Brave, …) | **Needs the [extension](#browser-extension-for-tabs)** (1 minute); then open the tab and tap an empty button |
 | herdr session with an AI agent | Focus the session's terminal tab, then tap |
 | DeepSeek Harness session | Open the session in the app, then tap |
 | Key combination (e.g. <kbd>Win</kbd>+<kbd>H</kbd> for voice typing) | Right-click the button on the control page |
@@ -69,18 +83,6 @@ For [herdr](https://github.com/ogulcancelik/herdr) sessions, both in Windows and
 - **ready:** the caption shows `✓ claude`, `✓ codex`, ….
 
 The button of the session you are in now is framed. If a session or program was closed, the button shows that too. After a reboot, Tapswitch finds the sessions again on its own.
-</details>
-
-<details>
-<summary><b>Browser tabs: install the extension</b></summary>
-
-The extension is installed manually. It is not published in browser stores.
-
-1. Download `tapswitch-browser-extension.zip` from [Releases](../../releases/latest). Unpack it to a permanent folder, e.g. `%LOCALAPPDATA%\Tapswitch\browser_extension`.
-2. Open `chrome://extensions` (`edge://extensions`, `opera://extensions`, …) and turn on **Developer mode**.
-3. Click **Load unpacked** and select the `browser_extension` folder.
-
-The extension connects only to `127.0.0.1` and sends the list of open tabs to Tapswitch. It works with any Chromium 116+ browser. Details are in [app/browser_extension/README.md](app/browser_extension/README.md) (in Russian).
 </details>
 
 <details>
