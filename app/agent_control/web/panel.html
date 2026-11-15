@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111418">
+<title>Tapswitch</title>
+<style>
+  @property --comet { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+  :root {
+    --bg: #111418;
+    --key: #232a33;
+    --key-pressed: #3b82f6;
+    --key-active: #22c55e;
+    --text: #e8edf3;
+    --muted: #8a96a6;
+    /* Цвет роли над иконкой — состояние агента */
+    --st-blocked: #ff8a1f;  /* ждёт ответа — ярко */
+    --st-working: #8f84bd;  /* работает — бледно */
+    --st-idle: #38bdf8;     /* готов к промпту — голубой */
+    --st-unknown: #5b6573;  /* неизвестно, агента нет, сессия недоступна */
+    --gap: 10px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden; overscroll-behavior: none;
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  #grid {
+    position: fixed;
+    inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    padding: var(--gap); display: grid; gap: var(--gap);
+    touch-action: none; z-index: 1;
+  }
+  .key {
+    position: relative; border-radius: 16px; background: var(--key-color, var(--key));
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 6px; min-width: 0; min-height: 0; overflow: hidden;
+    transition: background 80ms, transform 80ms, box-shadow 150ms;
+    touch-action: none;
+  }
+  /* Цвет плашки — свой вид кнопки (Rust-версия) */
+  .key[data-color="red"] { --key-color: #8e2c2c; }
+  .key[data-color="orange"] { --key-color: #94481a; }
+  .key[data-color="yellow"] { --key-color: #85691a; }
+  .key[data-color="green"] { --key-color: #24713d; }
+  .key[data-color="teal"] { --key-color: #136a6a; }
+  .key[data-color="blue"] { --key-color: #2a50a8; }
+  .key[data-color="purple"] { --key-color: #63409a; }
+  .key[data-color="pink"] { --key-color: #923166; }
+  .key[data-color="brown"] { --key-color: #6e4a2c; }
+  .key.pressed { background: var(--key-pressed); transform: scale(0.97); }
+  .key.active { box-shadow: inset 0 0 0 4px var(--key-active); }
+  /* Нажатая кнопка с сессией: бледная рамка сразу и понемногу ярче, пока сессия открывается;
+     полный цвет (.active) — когда компьютер сообщил, что сессия открыта. */
+  .key.pending:not(.active) { animation: pending 1500ms ease-out forwards; }
+  @keyframes pending {
+    from { box-shadow: inset 0 0 0 4px rgba(34, 197, 94, 0.2); }
+    to { box-shadow: inset 0 0 0 4px rgba(34, 197, 94, 0.6); }
+  }
+  /* Удержание «приподнимает» кнопку: теперь её можно перетащить на место другой. */
+  .key.lifted { transform: scale(1.04); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); }
+  .key.dragging { transition: none; z-index: 3; opacity: 0.9; position: relative; }
+  .key.drop-target { box-shadow: inset 0 0 0 3px #e8edf3; background: #2d3642; }
+  .key.unavailable img { filter: grayscale(1); opacity: 0.35; }
+  /* Над фоном страницы, но под кнопками: видео, закрытое фоном body, браузер может
+     считать невидимым и не держать экран включённым. */
+  #keepawake {
+    position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    z-index: 0; pointer-events: none;
+  }
+  .key .title {
+    font-size: clamp(10px, 2.4vmin, 15px); font-weight: 700; color: var(--st-unknown);
+    max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .key[data-status="blocked"] .title { color: var(--st-blocked); }
+  .key[data-status="working"] .title { color: var(--st-working); }
+  .key[data-status="idle"] .title, .key[data-status="done"] .title { color: var(--st-idle); }
+  .key.unavailable .title { color: var(--st-unknown); }
+  /* Состояние агента на кнопке (выбрано по макету «Статус агента на кнопке — варианты 2»):
+     работает — по рамке бежит хвост-комета; ждёт ответа — рамка «дышит» раз в секунду;
+     сделал — голубая рамка и галочка, за 10 минут бледнеют; готов к промпту (idle) — без значков
+     (приглушение пробовали: открытые сессии выглядели закрытыми).
+     У выбранной кнопки рамка состояния — внутри зелёной рамки. */
+  .key .fx-ring, .key .fx-badge { display: none; position: absolute; pointer-events: none; }
+  .key .fx-ring { inset: 0; border-radius: inherit; }
+  .key:is(.active, .pending) .fx-ring { inset: 6px; border-radius: 10px; }
+  .key[data-status="working"] .fx-ring {
+    display: block; padding: 3px;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    background: conic-gradient(from var(--comet), transparent 0deg 190deg, rgba(143, 132, 189, 0.45) 290deg, #e2dcff 357deg, transparent 360deg);
+    animation: comet 2.6s linear infinite;
+  }
+  .key[data-status="blocked"] .fx-ring {
+    display: block; box-shadow: inset 0 0 0 3px var(--st-blocked), inset 0 0 14px rgba(255, 138, 31, 0.45);
+    animation: blocked-beat 1s ease-in-out infinite;
+  }
+  /* --done-delay — отрицательная задержка: бледнеть от момента, когда агент закончил, а не от перерисовки */
+  .key[data-status="done"] .fx-ring {
+    display: block; box-shadow: inset 0 0 0 3px var(--st-idle);
+    animation: done-age 600s linear var(--done-delay, 0s) forwards;
+  }
+  .key[data-status="done"] .fx-badge {
+    display: block; top: 8px; right: 8px; width: clamp(14px, 4.6vmin, 26px); aspect-ratio: 1; border-radius: 50%;
+    background: var(--st-idle) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%230d1015' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 64% no-repeat;
+    animation: done-pop 0.5s cubic-bezier(0.3, 1.7, 0.5, 1) var(--done-delay, 0s) both, done-age 600s linear var(--done-delay, 0s) forwards;
+  }
+  .key:is(.active, .pending)[data-status="done"] .fx-badge { top: 12px; right: 12px; }
+  /* Сессия или окно приложения закрыты: вся кнопка приглушена (подпись, текстовая иконка,
+     цвет плашки) и в углу ✕ — видно и у кнопок без иконки. Состояния агента у закрытой нет,
+     поэтому место значка «сделал» свободно. */
+  .key.unavailable:not(.pressed, .drop-target) { background: color-mix(in srgb, var(--key-color, var(--key)) 55%, var(--bg)); }
+  .key.unavailable .label, .key.unavailable .glyph, .key.unavailable .hint { color: var(--st-unknown); }
+  .key.unavailable .glyph { filter: grayscale(1); opacity: 0.5; }  /* эмодзи цвет текста не меняет */
+  .key.unavailable .fx-badge {
+    display: block; top: 8px; right: 8px; width: clamp(14px, 4.6vmin, 26px); aspect-ratio: 1; border-radius: 50%;
+    background: #3a434f url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 7l10 10M17 7L7 17' fill='none' stroke='%23c3cbd6' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") center / 64% no-repeat;
+    cursor: pointer;  /* нажатие сбрасывает кнопку, как двойной клик (Rust-версия) */
+  }
+  @keyframes comet { to { --comet: 360deg; } }
+  @keyframes blocked-beat { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  @keyframes done-pop { from { transform: scale(0); } }
+  @keyframes done-age { from { opacity: 1; } to { opacity: 0.18; } }
+  @media (prefers-reduced-motion: reduce) {
+    .key[data-status="working"] .fx-ring, .key[data-status="blocked"] .fx-ring { animation: none; }
+  }
+  .key img { width: 38%; max-height: 45%; object-fit: contain; pointer-events: none; }
+  .key img[hidden], .key .title:empty, .key .glyph:empty, .key .hint:empty { display: none; }
+  /* Текстовая иконка: 1–5 символов или эмодзи крупно */
+  .key .glyph {
+    font-size: clamp(22px, 9vmin, 60px); font-weight: 700; line-height: 1; max-width: 100%;
+    white-space: nowrap; overflow: hidden;
+  }
+  .key .glyph[data-size="2"] { font-size: clamp(19px, 7.5vmin, 50px); }
+  .key .glyph[data-size="3"] { font-size: clamp(16px, 6vmin, 40px); }
+  .key .glyph[data-size="4"] { font-size: clamp(14px, 5vmin, 34px); }
+  .key .glyph[data-size="5"] { font-size: clamp(12px, 4.2vmin, 28px); }
+  .key .hint {
+    font: 600 clamp(9px, 2.2vmin, 13px) Consolas, ui-monospace, monospace; color: var(--text); opacity: .6;
+    max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .key .label {
+    font-size: clamp(11px, 3.2vmin, 20px); text-align: center; line-height: 1.15;
+    max-width: 100%; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  #status {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding: 24px; text-align: center; font-size: 18px; line-height: 1.4;
+    background: rgba(17, 20, 24, 0.88); z-index: 3;
+    touch-action: none;  /* свайп вниз по надписи — перезагрузка, браузер его не перехватывает */
+  }
+  #status[hidden] { display: none; }
+  #status.action { cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
+  /* Подтверждение запоминания сессии */
+  #confirm {
+    position: fixed; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(17, 20, 24, 0.82);
+  }
+  #confirm[hidden] { display: none; }
+  #confirm .box {
+    width: min(100%, 420px); background: #1b2129; border-radius: 18px; padding: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  }
+  #confirm-text { font-size: 18px; line-height: 1.35; margin-bottom: 18px; overflow-wrap: anywhere; }
+  #confirm .buttons { display: flex; gap: 12px; }
+  #confirm button {
+    flex: 1; min-height: 52px; border: 0; border-radius: 12px; font-size: 17px; font-weight: 600;
+    color: var(--text); background: var(--key);
+  }
+  #confirm #confirm-yes { background: #16a34a; }
+  #confirm button[hidden], #confirm-note[hidden] { display: none; }
+  /* Сессия ещё определяется: «Запомнить» уже можно нажать — запомнится, как только определится */
+  #confirm-note { margin: -8px 0 18px; font-size: 15px; color: var(--muted); }
+  #confirm-note::after { content: ""; animation: reading-dots 1.2s steps(4) infinite; }
+  @keyframes reading-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+  #confirm.failed #confirm-text { color: #fca5a5; }
+  /* Короткое уведомление: например, запомнить сессию не удалось (Rust-версия) */
+  #notice {
+    position: fixed; left: 50%; transform: translateX(-50%); z-index: 5;
+    bottom: calc(env(safe-area-inset-bottom) + 16px); width: max-content; max-width: min(92vw, 480px);
+    padding: 12px 16px; border-radius: 12px; background: #3b1d1d; border: 1px solid #7f2d2d;
+    font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  }
+  #notice[hidden] { display: none; }
+  /* Профили кнопок (Rust-версия). На ПК — маленькие кнопки вверху слева; на телефоне —
+     свайп: набор кнопок уезжает, приезжает другой, сверху появляется и гаснет номер профиля. */
+  #profiles {
+    position: fixed; left: calc(env(safe-area-inset-left) + var(--gap)); top: calc(env(safe-area-inset-top) + 6px);
+    display: none; gap: 4px; z-index: 2;
+  }
+  body.profile-bar #profiles { display: flex; }
+  body.profile-bar #grid { top: calc(env(safe-area-inset-top) + 32px); }
+  #profiles button {
+    width: 26px; height: 22px; border: 0; border-radius: 7px; padding: 0; cursor: pointer;
+    background: var(--key); color: var(--muted); font: 600 12px system-ui, sans-serif;
+  }
+  #profiles button:hover { color: var(--text); }
+  #profiles button.on { background: var(--key-pressed); color: #fff; }
+  #grid.slide { transition: transform 230ms cubic-bezier(.2, .8, .2, 1); }
+  #profile-number {
+    position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 4vh); z-index: 2; pointer-events: none;
+    font: 800 clamp(72px, 24vmin, 168px)/1 system-ui, sans-serif; color: var(--text);
+    text-shadow: 0 6px 30px rgba(0, 0, 0, .7); opacity: 0; transform: translateX(-50%);
+  }
+  #profile-number.show { animation: profile-number 1100ms ease-out; }
+  @keyframes profile-number {
+    0% { opacity: 0; transform: translate(-50%, -24px) scale(.8); }
+    22% { opacity: .95; transform: translate(-50%, 0) scale(1); }
+    65% { opacity: .95; transform: translate(-50%, 0) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -12px) scale(.96); }
+  }
+  @media (prefers-reduced-motion: reduce) { #grid.slide { transition: none; } }
+  #fullscreen {
+    position: fixed; right: calc(env(safe-area-inset-right) + 2px); top: calc(env(safe-area-inset-top) + 2px);
+    width: 28px; height: 28px; border: 0; border-radius: 8px; z-index: 2;
+    background: transparent; color: var(--muted); font-size: 16px; opacity: 0.6;
+  }
+  /* Свайп вниз — перезагрузка страницы: значок выезжает сверху за пальцем */
+  #pull {
+    position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 8px); z-index: 6; pointer-events: none;
+    width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: #1b2129; color: var(--muted); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+    transform: translate(-50%, -60px); opacity: 0;
+  }
+  #pull[hidden] { display: none; }
+  #pull.back { transition: transform 200ms ease-in, opacity 200ms ease-in; }
+  #pull.ready { background: var(--key-pressed); color: #fff; }
+  #pull.reloading svg { animation: pull-spin 700ms linear infinite; }
+  @keyframes pull-spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<video id="keepawake" muted playsinline loop preload="auto" disablepictureinpicture disableremoteplayback>
+  <source src="/keepawake.webm" type="video/webm">
+  <source src="/keepawake.mp4" type="video/mp4">
+</video>
+<div id="grid"></div>
+<div id="profiles"></div>
+<div id="profile-number"></div>
+<button id="fullscreen" aria-label="Во весь экран">⛶</button>
+<div id="status">Подключение…</div>
+<div id="confirm" hidden>
+  <div class="box">
+    <div id="confirm-text"></div>
+    <div id="confirm-note" hidden></div>
+    <div class="buttons">
+      <button id="confirm-no">Отмена</button>
+      <button id="confirm-yes">Запомнить</button>
+    </div>
+  </div>
+</div>
+<div id="notice" hidden></div>
+<div id="pull" hidden><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v4h-4"/></svg></div>
+<script>
+"use strict";
+const grid = document.getElementById("grid");
+const status = document.getElementById("status");
+const key = new URLSearchParams(location.search).get("key") || "";
+const keys = [];
+let socket = null;
+let retry = 500;
+// Проверка связи. Wi-Fi телефона может пропасть на несколько секунд, а браузер замечает
+// мёртвое соединение лишь через десятки секунд. Поэтому страница раз в PING_EVERY_MS шлёт
+// ping и, если ответа нет PONG_WAIT_MS, сама бросает соединение и открывает новое.
+// Старая (Python) версия на ping не отвечает — тогда проверка не включается.
+const PING_EVERY_MS = 2000;
+const PONG_WAIT_MS = 5000;
+const CONNECT_WAIT_MS = 5000;  // новое соединение не открылось — попробовать заново
+const pageId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+let heartbeat = false;  // программа отвечает на ping
+let pingSentAt = 0;  // когда ушёл ping без ответа; 0 — ответа не ждём
+let lastTick = Date.now();
+let connectTimer = null;
+let pageVersion = "";  // версия страницы от программы при первом подключении
+let stopped = false;
+const PENDING_TIMEOUT_MS = 5000;  // сессия так и не оказалась в фокусе — рамка пропадает
+let pending = null;  // {el, timer, remember}
+// Состояние вопроса о запоминании (Rust-версия): reading — сессия ещё определяется, ready, failed — не удалось.
+let confirmState = "ready";
+let confirmKey = null;
+const REMEMBER_TIMEOUT_MS = 15000;  // согласились до того, как сессия определилась: ждём её не дольше
+
+function stopPending() {
+  if (!pending) return;
+  clearTimeout(pending.timer);
+  pending.el.classList.remove("pending");
+  pending = null;
+}
+
+function startPending(el) {
+  stopPending();
+  if (el.dataset.bound !== "1" || el.classList.contains("active")) return;
+  el.classList.add("pending");
+  pending = {el, timer: setTimeout(stopPending, PENDING_TIMEOUT_MS)};
+}
+
+// Строки страницы. Язык — из сообщения layout (Rust-версия), иначе язык браузера.
+const STRINGS = {
+  ru: {
+    title: "Tapswitch", fullscreen: "Во весь экран", connecting: "Подключение…",
+    cancel: "Отмена", remember: "Запомнить", ok: "ОК", reading: "Определяю сессию",
+    replaced: "Панель открыта на другом устройстве. Нажмите здесь, чтобы вернуть её сюда.",
+    closed: "Панель вернулась на компьютер. Ждём, когда её снова перенесут на телефон…",
+    offline: "Нет связи с компьютером, переподключаюсь…",
+  },
+  en: {
+    title: "Tapswitch", fullscreen: "Full screen", connecting: "Connecting…",
+    cancel: "Cancel", remember: "Remember", ok: "OK", reading: "Finding the session",
+    replaced: "The panel is open on another device. Tap here to bring it back.",
+    closed: "The panel went back to the computer. Waiting for it to be moved to the phone again…",
+    offline: "No connection to the computer, reconnecting…",
+  },
+};
+let lang = "ru";  // по умолчанию русский; другой язык присылает программа в layout
+let statusName = "connecting";
+const T = (name) => (STRINGS[lang] || STRINGS.ru)[name] ?? name;
+
+function setLang(code) {
+  if (STRINGS[code]) lang = code;
+  document.documentElement.lang = lang;
+  document.title = T("title");
+  document.getElementById("fullscreen").setAttribute("aria-label", T("fullscreen"));
+  document.getElementById("confirm-no").textContent = T(confirmState === "failed" ? "ok" : "cancel");
+  document.getElementById("confirm-yes").textContent = T("remember");
+  document.getElementById("confirm-note").textContent = T("reading");
+  if (statusName) status.textContent = T(statusName);
+}
+
+/** Сообщение поверх панели по имени строки; пустое имя — убрать. */
+function showStatus(name) {
+  statusName = name;
+  status.textContent = name ? T(name) : "";
+  status.hidden = !name;
+  status.classList.toggle("action", name === "replaced");
+}
+
+// Панель внутри страницы управления: любое нажатие закрывает меню кнопки на странице.
+if (window.parent !== window) {
+  document.addEventListener("pointerdown", () => window.parent.postMessage({type: "panel-pointer"}, location.origin));
+}
+
+// Панель вытеснена другим устройством: нажатие на надпись подключает её снова — без
+// перезагрузки страницы, чтобы не выходить из полноэкранного режима.
+status.addEventListener("click", () => {
+  if (statusName !== "replaced") return;
+  if (performance.now() - statusPulledAt < 500) return;  // это был свайп вниз, а не нажатие
+  stopped = false;
+  showStatus("connecting");
+  connect();
+});
+setLang(lang);
+
+// Раскладка с ПК горизонтальная (например, 2×4). Если телефон держат вертикально,
+// строки и столбцы меняются местами (4×2); порядок кнопок — по строкам слева направо.
+let layout = {rows: 2, cols: 4};
+let holdMs = 500;  // после такого удержания сдвиг пальца перетаскивает кнопку
+const DRAG_DISTANCE = 12;  // px
+
+// --- профили кнопок: присылает только Rust-версия (сообщение profile), иначе их нет
+let profile = 0, profileCount = 0, profileKnown = false;
+let switching = null;  // {target, timer} — запрос смены профиля ушёл, ждём ответа
+const SWIPE_START = 18;  // px: горизонтальный сдвиг до удержания — это свайп, а не нажатие
+const profileBar = document.getElementById("profiles");
+const profileNumber = document.getElementById("profile-number");
+// Кнопки профилей — когда панель открыта в браузере на ПК (мышь); на странице управления
+// они над панелью на самой странице, на телефоне — свайп.
+const wantsBar = window.parent === window && matchMedia("(pointer: fine)").matches;
+
+function renderProfiles() {
+  document.body.classList.toggle("profile-bar", wantsBar && profileCount > 1);
+  if (profileBar.children.length !== profileCount) {
+    profileBar.replaceChildren(...Array.from({length: profileCount}, (_, i) => {
+      const button = document.createElement("button");
+      button.textContent = i + 1;
+      button.addEventListener("click", () => requestProfile(i));
+      return button;
+    }));
+    applyLayout();
+  }
+  [...profileBar.children].forEach((button, i) => button.classList.toggle("on", i === profile));
+}
+
+function slideGrid(offset, animate) {
+  grid.classList.toggle("slide", animate);
+  grid.style.transform = offset ? `translateX(${offset}px)` : "";
+}
+
+function showProfileNumber() {
+  profileNumber.textContent = profile + 1;
+  profileNumber.classList.remove("show");
+  void profileNumber.offsetWidth;  // перезапуск анимации
+  profileNumber.classList.add("show");
+}
+
+/** Соседний профиль по кругу: после последнего идёт первый и наоборот. */
+function neighborProfile(step) {
+  return (profile + step + profileCount) % profileCount;
+}
+
+/** Направление перехода по кругу: +1 — вперёд (набор уезжает влево), -1 — назад. */
+function profileDirection(from, to) {
+  const forward = (to - from + profileCount) % profileCount;
+  return forward <= profileCount / 2 ? 1 : -1;
+}
+
+/** Перейти к профилю: набор уезжает в сторону, потом просим программу сменить профиль. */
+function requestProfile(target) {
+  if (!profileCount || switching) return slideGrid(0, true);
+  target = ((target % profileCount) + profileCount) % profileCount;
+  if (target === profile) return slideGrid(0, true);
+  const direction = profileDirection(profile, target);
+  slideGrid(-direction * window.innerWidth, true);
+  switching = {target, timer: setTimeout(() => { switching = null; slideGrid(0, true); }, 1500)};
+  // Запрос — когда набор уехал: иначе новые кнопки мелькнули бы на уезжающем наборе.
+  setTimeout(() => send({type: "profile", profile: target}), 200);
+}
+
+/** Программа сообщила текущий профиль: новый набор приезжает с той стороны, куда листали. */
+function onProfile(message) {
+  const previous = profile;
+  profile = message.profile;
+  profileCount = message.count || 0;
+  renderProfiles();
+  if (switching) { clearTimeout(switching.timer); switching = null; }
+  if (profileKnown && previous !== profile) {
+    const direction = profileDirection(previous, profile);
+    slideGrid(direction * window.innerWidth, false);
+    void grid.offsetWidth;
+    slideGrid(0, true);
+    showProfileNumber();
+  } else {
+    slideGrid(0, false);
+  }
+  profileKnown = true;
+}
+
+function applyLayout() {
+  const portrait = window.innerHeight > window.innerWidth;
+  const small = Math.min(layout.rows, layout.cols), big = Math.max(layout.rows, layout.cols);
+  const cols = portrait ? small : big;
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  grid.style.gridTemplateRows = `repeat(${Math.ceil(keys.length / cols)}, 1fr)`;
+}
+
+window.addEventListener("resize", applyLayout);
+window.addEventListener("orientationchange", applyLayout);
+
+// --- Свайп вниз — перезагрузить страницу. Свой жест вместо «потянуть для обновления» браузера:
+// встроенный отключён (touch-action, overscroll-behavior), иначе браузер перехватывал бы касания
+// кнопок. Только касанием: мышью на ПК так не перезагружается.
+const pullEl = document.getElementById("pull");
+const pullIcon = pullEl.querySelector("svg");
+const REFULLSCREEN = "tapswitch-refullscreen";
+let pullReady = false;
+let pullReloading = false;
+let pullHideTimer = null;
+
+/** Порог перезагрузки: доля высоты экрана, но 90–160 px (в альбомной ориентации экран низкий). */
+function pullThreshold() {
+  return Math.min(160, Math.max(90, window.innerHeight * 0.2));
+}
+
+/** Начало свайпа вниз: палец ушёл вниз заметно больше, чем вбок. */
+function isPullStart(event, dx, dy) {
+  return event.pointerType !== "mouse" && dy > SWIPE_START && dy > Math.abs(dx) * 1.5;
+}
+
+/** Палец тянет вниз на dy px: значок едет следом и поворачивается; за порогом — подсвечен. */
+function pullMove(dy) {
+  if (pullReloading) return;
+  clearTimeout(pullHideTimer);
+  const progress = Math.max(0, dy) / pullThreshold();
+  const ready = progress >= 1;
+  if (ready !== pullReady) {
+    pullReady = ready;
+    pullEl.classList.toggle("ready", ready);
+    if (ready && navigator.vibrate) navigator.vibrate(12);
+  }
+  const shown = Math.min(progress, 1.3);
+  pullEl.classList.remove("back");
+  pullEl.hidden = false;
+  pullEl.style.opacity = Math.min(1, progress * 1.5);
+  pullEl.style.transform = `translate(-50%, ${-60 + shown * 80}px)`;
+  pullIcon.style.transform = `rotate(${shown * 300}deg)`;
+}
+
+/** Палец отпущен: за порогом — перезагрузить, иначе значок уезжает обратно. */
+function pullEnd() {
+  if (pullReloading) return;
+  if (pullReady) return reloadPage();
+  pullEl.classList.add("back");
+  pullEl.style.opacity = 0;
+  pullEl.style.transform = "translate(-50%, -60px)";
+  pullHideTimer = setTimeout(() => { pullEl.hidden = true; pullEl.classList.remove("back"); }, 250);
+}
+
+function reloadPage() {
+  pullReloading = true;
+  pullEl.classList.add("reloading");
+  // Перезагрузка выводит из полноэкранного режима — вернуть его первым касанием на новой странице.
+  try { if (document.fullscreenElement) sessionStorage.setItem(REFULLSCREEN, "1"); } catch (e) {}
+  location.reload();
+}
+
+// Браузер разрешает войти в полноэкранный режим только по касанию — поэтому не сразу после
+// загрузки, а при первом касании.
+try {
+  if (sessionStorage.getItem(REFULLSCREEN)) {
+    sessionStorage.removeItem(REFULLSCREEN);
+    const restore = () => {
+      for (const type of ["pointerup", "touchend"]) document.removeEventListener(type, restore, true);
+      const root = document.documentElement;
+      if (!document.fullscreenElement && root.requestFullscreen) root.requestFullscreen().catch(() => {});
+    };
+    for (const type of ["pointerup", "touchend"]) document.addEventListener(type, restore, true);
+  }
+} catch (e) {}
+
+// Свайп вниз и поверх сообщения о связи — как раз когда панель не может переподключиться.
+let statusPull = null;  // {id, x, y, active}
+let statusPulledAt = 0;
+status.addEventListener("pointerdown", (event) => {
+  if (event.pointerType === "mouse" || statusPull) return;
+  statusPull = {id: event.pointerId, x: event.clientX, y: event.clientY, active: false};
+  status.setPointerCapture(event.pointerId);
+});
+status.addEventListener("pointermove", (event) => {
+  const swipe = statusPull;
+  if (!swipe || event.pointerId !== swipe.id) return;
+  const dx = event.clientX - swipe.x, dy = event.clientY - swipe.y;
+  if (!swipe.active && !isPullStart(event, dx, dy)) return;
+  swipe.active = true;
+  pullMove(dy);
+});
+function endStatusPull(event) {
+  const swipe = statusPull;
+  if (!swipe || event.pointerId !== swipe.id) return;
+  statusPull = null;
+  if (!swipe.active) return;
+  statusPulledAt = performance.now();
+  pullEnd();
+}
+status.addEventListener("pointerup", endStatusPull);
+status.addEventListener("pointercancel", endStatusPull);
+status.addEventListener("lostpointercapture", endStatusPull);
+
+function buildGrid(rows, cols) {
+  layout = {rows, cols};
+  if (keys.length === rows * cols) return applyLayout();
+  grid.textContent = "";
+  keys.length = 0;
+  for (let i = 0; i < rows * cols; i++) {
+    const el = document.createElement("div");
+    el.className = "key";
+    el.innerHTML = '<div class="title"></div><img hidden alt=""><div class="glyph"></div><div class="label"></div><div class="hint"></div><div class="fx-ring"></div><div class="fx-badge"></div>';
+    bindKey(el, i);
+    grid.appendChild(el);
+    keys.push(el);
+  }
+  applyLayout();
+}
+
+function keyAt(x, y, except) {
+  return document.elementsFromPoint(x, y).find((item) => item !== except && keys.includes(item)) || null;
+}
+
+// Свайп по панели: листает профили не только от кнопки, но и от промежутка между ними
+// (и от полей вокруг сетки). На самой кнопке свайп считает её собственный обработчик.
+// Свайп вниз оттуда же — перезагрузка страницы.
+let gridSwipe = null;  // {id, x, y, dx, mode}; mode: null — ещё касание, "profile" — листание, "pull" — вниз
+grid.addEventListener("pointerdown", (event) => {
+  if (switching || gridSwipe) return;
+  if (event.target.closest(".key")) return;
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+  gridSwipe = {id: event.pointerId, x: event.clientX, y: event.clientY, dx: 0, mode: null};
+  grid.setPointerCapture(event.pointerId);
+  keepAwake();
+});
+grid.addEventListener("pointermove", (event) => {
+  const swipe = gridSwipe;
+  if (!swipe || event.pointerId !== swipe.id) return;
+  const dx = event.clientX - swipe.x, dy = event.clientY - swipe.y;
+  if (!swipe.mode) {
+    // До порога — ещё касание.
+    if (isPullStart(event, dx, dy)) swipe.mode = "pull";
+    else if (profileCount > 1 && Math.abs(dx) > SWIPE_START && Math.abs(dx) > Math.abs(dy) * 1.5) swipe.mode = "profile";
+    else return;
+    stopPending();
+  }
+  if (swipe.mode === "pull") return pullMove(dy);
+  // Профили идут по кругу, поэтому набор тянется за пальцем в любую сторону.
+  swipe.dx = dx;
+  slideGrid(swipe.dx, false);
+});
+function endGridSwipe(event) {
+  const swipe = gridSwipe;
+  if (!swipe || event.pointerId !== swipe.id) return;
+  gridSwipe = null;
+  if (!swipe.mode) return;
+  if (swipe.mode === "pull") return pullEnd();
+  // Сдвинули на заметную часть ширины — к соседнему профилю (по кругу), иначе набор возвращается.
+  const target = Math.abs(swipe.dx) > window.innerWidth * 0.18 ? neighborProfile(swipe.dx < 0 ? 1 : -1) : profile;
+  requestProfile(target);
+}
+grid.addEventListener("pointerup", endGridSwipe);
+grid.addEventListener("pointercancel", endGridSwipe);
+grid.addEventListener("lostpointercapture", endGridSwipe);
+
+/** Касание пришлось на крестик закрытой кнопки (с запасом вокруг значка — под палец). */
+function onCross(el, event) {
+  if (!el.classList.contains("unavailable")) return false;
+  const box = el.querySelector(".fx-badge").getBoundingClientRect();
+  if (!box.width) return false;
+  const slack = Math.max(12, box.width * 0.6);
+  return event.clientX >= box.left - slack && event.clientX <= box.right + slack
+    && event.clientY >= box.top - slack && event.clientY <= box.bottom + slack;
+}
+
+function bindKey(el, index) {
+  let down = false;
+  let start = null;  // {x, y, time}
+  let dragging = false;
+  let target = null;
+  let liftTimer = null;
+  let swipe = null;  // {dx} — палец ведёт набор кнопок вбок
+  let pull = false;  // палец тянет вниз — перезагрузка страницы
+
+  // Свайп вместо нажатия: нажатие отменяется так же, как при перетаскивании мимо кнопок.
+  const cancelPress = () => {
+    clearTimeout(liftTimer);
+    el.classList.remove("pressed");
+    stopPending();
+    send({type: "drag", key: index});
+    send({type: "drop", key: index, target: null});
+  };
+  const setTarget = (next) => {
+    if (target === next) return;
+    if (target) target.classList.remove("drop-target");
+    target = next;
+    if (target) target.classList.add("drop-target");
+  };
+  const release = () => {
+    if (!down) return;
+    down = false;
+    clearTimeout(liftTimer);
+    if (pull) {
+      pull = false;
+      pullEnd();
+      return;
+    }
+    if (swipe) {
+      // Сдвинули на заметную часть ширины — к соседнему профилю (по кругу), иначе набор возвращается.
+      const target = Math.abs(swipe.dx) > window.innerWidth * 0.18 ? neighborProfile(swipe.dx < 0 ? 1 : -1) : profile;
+      swipe = null;
+      requestProfile(target);
+      return;
+    }
+    el.classList.remove("pressed", "lifted", "dragging");
+    el.style.transform = "";
+    if (dragging) {
+      dragging = false;
+      send({type: "drop", key: index, target: target ? keys.indexOf(target) : null});
+      setTarget(null);
+    } else {
+      send({type: "up", key: index});
+    }
+  };
+  el.addEventListener("pointermove", (event) => {
+    if (!down) return;
+    const dx = event.clientX - start.x, dy = event.clientY - start.y;
+    if (pull) return pullMove(dy);
+    if (!dragging && !swipe && performance.now() - start.time < holdMs && isPullStart(event, dx, dy)) {
+      // Свайп вниз до удержания — перезагрузка; после удержания — по-прежнему перетаскивание.
+      pull = true;
+      cancelPress();
+      pullMove(dy);
+      return;
+    }
+    if (swipe) {
+      // Профили идут по кругу, поэтому набор тянется за пальцем в любую сторону.
+      swipe.dx = dx;
+      slideGrid(swipe.dx, false);
+      return;
+    }
+    if (!dragging && profileCount > 1 && !switching && performance.now() - start.time < holdMs
+        && Math.abs(dx) > SWIPE_START && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      swipe = {dx: 0};
+      cancelPress();
+      return;
+    }
+    if (!dragging) {
+      if (performance.now() - start.time < holdMs || Math.hypot(dx, dy) < DRAG_DISTANCE) return;
+      dragging = true;
+      el.classList.remove("pressed");
+      el.classList.add("dragging");
+      stopPending();
+      send({type: "drag", key: index});
+    }
+    el.style.transform = `translate(${dx}px, ${dy}px) scale(1.04)`;
+    setTarget(keyAt(event.clientX, event.clientY, el));
+  });
+  el.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    if (event.pointerType === "mouse" && event.button !== 0) return;  // правая кнопка — меню
+    if (down) return;
+    // Крестик закрытой сессии: сбросить кнопку, как двойным кликом. Зона касания шире значка.
+    if (onCross(el, event)) {
+      if (navigator.vibrate) navigator.vibrate(12);
+      keepAwake();
+      send({type: "forget", key: index});
+      return;
+    }
+    down = true;
+    start = {x: event.clientX, y: event.clientY, time: performance.now()};
+    liftTimer = setTimeout(() => {
+      if (!down) return;
+      el.classList.add("lifted");
+      stopPending();  // удержание — запоминание или перетаскивание, а не переключение сессии
+    }, holdMs);
+    el.setPointerCapture(event.pointerId);
+    el.classList.add("pressed");
+    startPending(el);
+    if (navigator.vibrate) navigator.vibrate(12);
+    keepAwake();
+    send({type: "down", key: index});
+  });
+  el.addEventListener("pointerup", release);
+  el.addEventListener("pointercancel", release);
+  el.addEventListener("lostpointercapture", release);
+  el.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    // Панель внутри страницы управления: меню кнопки показывает страница.
+    if (window.parent !== window) {
+      window.parent.postMessage({type: "key-menu", key: index, x: event.clientX, y: event.clientY}, location.origin);
+    }
+  });
+}
+
+/** Сколько знаков видно (эмодзи из нескольких символов — один знак). */
+function glyphCount(text) {
+  if (window.Intl && Intl.Segmenter) return [...new Intl.Segmenter().segment(text)].length;
+  return [...text].length;
+}
+
+// Сессия → когда агент закончил: «сделал» бледнеет от этого момента, даже если кнопку перерисовали
+// (листание профилей, переподключение).
+const doneSince = new Map();
+
+function trackDone(el, message) {
+  const who = `${message.title || ""}|${message.label || ""}`;
+  if (el.dataset.status !== "done") { doneSince.delete(who); return; }
+  if (!doneSince.has(who)) doneSince.set(who, Date.now());
+  el.style.setProperty("--done-delay", `${(doneSince.get(who) - Date.now()) / 1000}s`);
+}
+
+function showKey(message) {
+  const el = keys[message.key];
+  if (!el) return;
+  el.classList.toggle("active", !!message.active);
+  el.classList.toggle("unavailable", message.available === false);
+  el.dataset.status = message.available === false ? "" : (message.status || "");
+  el.dataset.bound = message.bound ? "1" : "";
+  trackDone(el, message);
+  // Рамка нажатия — до фокуса сессии; рамка раннего «Запомнить» — пока кнопка не получит сессию.
+  if (pending && pending.el === el && (pending.remember ? message.bound : (message.active || !message.bound))) stopPending();
+  el.querySelector(".title").textContent = message.title || "";
+  el.querySelector(".label").textContent = message.label || "";
+  // Свой вид кнопки — только от Rust-версии; Python-версия этих полей не шлёт.
+  if (message.color) el.dataset.color = message.color; else delete el.dataset.color;
+  const glyph = el.querySelector(".glyph");
+  glyph.textContent = message.icon_text || "";
+  glyph.dataset.size = Math.min(5, glyphCount(message.icon_text || ""));
+  el.querySelector(".hint").textContent = (message.hint || "").replaceAll("+", " + ");
+  const img = el.querySelector("img");
+  if (message.icon) {
+    const src = message.icon;  // адрес картинки на этом же сервере
+    if (img.getAttribute("src") !== src) img.src = src;
+    img.hidden = false;
+  } else {
+    img.hidden = true;
+    img.removeAttribute("src");
+  }
+}
+
+const confirmBox = document.getElementById("confirm");
+
+function showConfirm(message) {
+  confirmBox.hidden = message.key === null || message.key === undefined;
+  confirmKey = confirmBox.hidden ? null : message.key;
+  confirmState = message.state || "ready";  // Python-версия состояния не шлёт
+  if (!confirmBox.hidden && !(pending && pending.remember)) stopPending();  // переключения не будет
+  document.getElementById("confirm-text").textContent = message.text || "";
+  document.getElementById("confirm-note").hidden = confirmState !== "reading";
+  document.getElementById("confirm-yes").hidden = confirmState === "failed";
+  document.getElementById("confirm-no").textContent = T(confirmState === "failed" ? "ok" : "cancel");
+  confirmBox.classList.toggle("failed", confirmState === "failed");
+}
+
+function answer(ok) {
+  const early = ok && confirmState === "reading" && keys[confirmKey];
+  confirmBox.hidden = true;
+  send({type: "answer", ok});
+  // «Запомнить» раньше, чем сессия определилась: рамка ожидания, пока кнопка её не получит.
+  if (early) {
+    stopPending();
+    const el = keys[confirmKey];
+    el.classList.add("pending");
+    pending = {el, remember: true, timer: setTimeout(stopPending, REMEMBER_TIMEOUT_MS)};
+  }
+}
+
+const notice = document.getElementById("notice");
+let noticeTimer = null;
+
+function showNotice(text) {
+  if (pending && pending.remember) stopPending();
+  notice.textContent = text || "";
+  notice.hidden = !text;
+  clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => { notice.hidden = true; }, 8000);
+}
+
+notice.addEventListener("click", () => { notice.hidden = true; });
+
+document.getElementById("confirm-yes").addEventListener("click", () => answer(true));
+document.getElementById("confirm-no").addEventListener("click", () => answer(false));
+
+function send(message) {
+  if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
+}
+
+function connect() {
+  const ws = new WebSocket(`ws://${location.host}/ws?key=${encodeURIComponent(key)}&page=${pageId}`);
+  socket = ws;
+  heartbeat = false;
+  pingSentAt = 0;
+  clearTimeout(connectTimer);
+  connectTimer = setTimeout(() => { if (ws.readyState === WebSocket.CONNECTING) lost(ws); }, CONNECT_WAIT_MS);
+  ws.onopen = () => {
+    clearTimeout(connectTimer);
+    retry = 500;
+    showStatus("");
+    tick();
+  };
+  ws.onmessage = (event) => {
+    pingSentAt = 0;
+    const message = JSON.parse(event.data);
+    if (message.type === "pong") { heartbeat = true; return; }
+    if (message.type === "layout") {
+      // Программа обновилась, а страница осталась прежней (переподключилась без перезагрузки):
+      // перезагрузить, чтобы работали новые возможности.
+      if (message.version && pageVersion && message.version !== pageVersion) return location.reload();
+      if (message.version) pageVersion = message.version;
+      if (message.hold_ms) holdMs = message.hold_ms;
+      if (message.lang) setLang(message.lang);
+      buildGrid(message.rows, message.cols);
+    }
+    else if (message.type === "key") showKey(message);
+    else if (message.type === "confirm") showConfirm(message);
+    else if (message.type === "notice") showNotice(message.text);
+    else if (message.type === "profile") onProfile(message);
+    else if (message.type === "replaced") {
+      stopped = true;
+      showStatus("replaced");
+    } else if (message.type === "closed") {
+      showStatus("closed");
+    }
+  };
+  ws.onclose = () => lost(ws);
+}
+
+// Соединение оборвалось или признано мёртвым: забыть его и открыть новое.
+function lost(ws) {
+  if (ws !== socket) return;
+  socket = null;
+  clearTimeout(connectTimer);
+  ws.onopen = ws.onmessage = ws.onclose = null;
+  try { ws.close(); } catch (e) {}
+  keys.forEach((el) => el.classList.remove("pressed"));
+  if (stopped) return;
+  if (status.hidden) showStatus("offline");
+  setTimeout(connect, retry);
+  retry = Math.min(retry * 2, 2000);
+}
+
+function tick() {
+  const now = Date.now();
+  // Таймеры стояли (экран гас, вкладка в фоне): прежний ping не в счёт — проверить заново.
+  const frozen = now - lastTick > PING_EVERY_MS * 2.5;
+  lastTick = now;
+  const ws = socket;
+  if (!ws || ws.readyState !== WebSocket.OPEN || stopped) return;
+  if (frozen) pingSentAt = 0;
+  if (heartbeat && pingSentAt && now - pingSentAt > PONG_WAIT_MS) return lost(ws);
+  if (!pingSentAt) {
+    pingSentAt = now;
+    ws.send(JSON.stringify({type: "ping"}));
+  }
+}
+
+setInterval(tick, PING_EVERY_MS);
+// Вернулись на страницу или телефон снова в сети — проверить связь сразу.
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") tick(); });
+window.addEventListener("online", tick);
+
+// Не давать телефону гаснуть. Wake Lock API есть только на HTTPS; по HTTP — беззвучное
+// видео в цвет фона на весь экран за кнопками. Включается сразу при загрузке (беззвучное
+// видео браузеры разрешают запускать без касания); если браузер всё же отклонил — касанием.
+const video = document.getElementById("keepawake");
+let wakeLock = null;
+let awakeWanted = false;
+
+function keepAwake() {
+  awakeWanted = true;
+  if (document.visibilityState !== "visible") return;
+  if ("wakeLock" in navigator && window.isSecureContext) {
+    if (!wakeLock) {
+      navigator.wakeLock.request("screen").then((lock) => {
+        wakeLock = lock;
+        lock.addEventListener("release", () => { wakeLock = null; });
+      }).catch(() => {});
+    }
+    return;
+  }
+  video.muted = true;
+  if (video.paused || video.ended) video.play().catch(() => {});
+}
+
+// Касанием браузер считает отпускание пальца (pointerdown при касании — нет), поэтому
+// запускать и по нему: иначе play() могут отклонить, и видео так и не заиграет.
+for (const type of ["pointerup", "touchend", "click"]) {
+  document.addEventListener(type, keepAwake, {capture: true, passive: true});
+}
+
+// При сворачивании браузер снимает блокировку и ставит видео на паузу — вернуть. Плюс
+// возврат из кэша страниц, фокус и смена размера (развернули на весь экран, повернули).
+document.addEventListener("visibilitychange", () => {
+  if (awakeWanted && document.visibilityState === "visible") keepAwake();
+});
+for (const type of ["pageshow", "focus", "resize"]) {
+  window.addEventListener(type, () => { if (awakeWanted) keepAwake(); });
+}
+document.addEventListener("fullscreenchange", () => { if (awakeWanted) keepAwake(); });
+
+// Браузер может остановить видео и без сворачивания (экономия энергии, сбой потока) —
+// запустить снова; плюс страховочная проверка раз в 10 с.
+video.addEventListener("pause", () => { if (awakeWanted) setTimeout(keepAwake, 300); });
+video.addEventListener("ended", () => { if (awakeWanted) keepAwake(); });
+setInterval(() => { if (awakeWanted) keepAwake(); }, 10000);
+
+document.getElementById("fullscreen").addEventListener("click", () => {
+  keepAwake();
+  const root = document.documentElement;
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (root.requestFullscreen) {
+    root.requestFullscreen().catch(() => {});
+  }
+});
+
+buildGrid(2, 4);
+connect();
+// Страница могла перезагрузиться сама (Android выгрузил вкладку в фоне, вышла новая версия
+// программы) — защиту от сна не ждать до первого касания.
+keepAwake();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+name: {ru: Автоматически, en: Automatic}
+# Подпись: своя (caption, задаётся на странице управления) или проект из папки сессии (роль — над иконкой), без папки — название сессии;
+# и агент с его состоянием (✓ готов, … занят, ⚠ ждёт).
+label:
+  ru: "{_waiting|}{caption|session.project|session.title|Нет сессии} {session.agent_mark|}"
+  en: "{_waiting|}{caption|session.project|session.title|No session} {session.agent_mark|}"
+# Иконка роли сессии (app/icons/<роль>.svg); core — роль в папке не указана.
+# У окна приложения роли нет — вместо неё иконка самой программы.
+icon: "{session.role|}{session.icon|}"
+# Роль над иконкой — если включено «Добавить роль на иконку»; цвет — состояние агента.
+icon_title: "{session.role|}"
+# Клик — сразу при отпускании, без ожидания второго нажатия (двойной клик — после него).
+eager_click: true
+gestures:
+  # Нажатие открывает сессию; на пустой кнопке или после потери сессии запоминает выделенную.
+  click: [{action: switch_session}]
+  # Удержание: в начале читается выделенная сессия, при отпускании на месте — запоминается
+  # (перезаписывается). Если, удерживая, сдвинуть палец/мышь — кнопка перетаскивается, сессия не меняется.
+  hold_start: [{action: read_current_session}]
+  hold_end: [{action: bind_held_session}]
+  hold_cancel: [{action: forget_held_session}]
+  # Двойной клик — очистить привязку кнопки к сессии.
+  double_click: [{action: unbind_session}]

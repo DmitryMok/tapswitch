@@ -1,0 +1,1345 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Tapswitch</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root {
+    --bg: #111418;
+    --card: #181d23;
+    --line: #2a323d;
+    --key: #232a33;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --text: #e8edf3;
+    --muted: #8a96a6;
+    --danger: #f87171;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f3f5f8; --card: #ffffff; --line: #dde3ea; --key: #eef1f5;
+      --text: #141a21; --muted: #5d6877; --shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 8px 24px rgba(0, 0, 0, .06);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 14px 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  header img { width: 28px; height: 28px; }
+  header h1 { font-size: 17px; font-weight: 600; margin: 0; flex: 1; }
+  .langs { display: flex; background: var(--key); border-radius: 999px; padding: 3px; }
+  .langs button {
+    border: 0; background: none; color: var(--muted); padding: 3px 0; min-width: 46px; text-align: center;
+    border-radius: 999px; font-size: 13px;
+  }
+  .langs button:hover { color: var(--text); border: 0; }
+  .langs button.on { background: var(--accent); color: #fff; }
+  /* Ширина — под самую длинную надпись: смена языка и состояния не сдвигает шапку */
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px;
+    min-width: 17.5em; white-space: nowrap;
+    background: var(--key); color: var(--muted); font-size: 13px; transition: color 150ms;
+  }
+  .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--muted); }
+  .pill.on { color: var(--text); }
+  .pill.on::before { background: var(--green); border-color: var(--green); }
+  /* Подключение расширения браузера: серый — нет, зелёный — подключено */
+  .browser-badge {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 34px; height: 34px; border-radius: 999px; background: var(--key);
+    color: var(--muted); transition: color 150ms; cursor: default;
+  }
+  .browser-badge.on { color: var(--green); }
+  .browser-badge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .browser-badge svg { width: 19px; height: 19px; display: block; }
+  main {
+    display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px;
+    max-width: 1180px; margin: 0 auto; padding: 24px;
+  }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 20px 22px; }
+  .stack { display: grid; gap: 20px; align-content: start; }
+  h2 { font-size: 20px; font-weight: 600; margin: 0 0 16px; }
+  h3 { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
+  h3:first-child { margin-top: 0; }
+  .qr-row { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; }
+  .qr { width: 220px; height: 220px; border-radius: 12px; background: #fff; padding: 6px; flex: none; }
+  .qr img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+  ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+  .url { display: flex; gap: 8px; align-items: center; margin-top: 18px; }
+  .url code {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    background: var(--key); padding: 8px 12px; border-radius: 10px; font: 13px Consolas, monospace;
+  }
+  button {
+    font: inherit; font-size: 14px; color: var(--text); background: var(--key); border: 1px solid var(--line);
+    border-radius: 10px; padding: 7px 14px; cursor: pointer; transition: background 120ms, border-color 120ms;
+  }
+  button:hover { border-color: var(--accent); }
+  #copy, #save-web, #copy-log, #hotkey-dialog .buttons button { min-width: 7.5em; }
+  button:disabled { opacity: .4; cursor: default; border-color: var(--line); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  details { margin-top: 16px; }
+  summary { cursor: pointer; color: var(--muted); user-select: none; }
+  summary:hover { color: var(--text); }
+  details ul { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 6px; color: var(--muted); }
+  .connected-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  /* Заголовок панели на странице: справа — кнопки профилей */
+  .panel-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .panel-head h2 { margin: 0; flex: 1; }
+  .profile-switch { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--key); }
+  .profile-switch button { min-width: 32px; padding: 4px 0; border: 0; border-radius: 7px; background: none; color: var(--muted); font-weight: 600; }
+  .profile-switch button:hover { color: var(--text); }
+  .profile-switch button.on { background: var(--accent); color: #fff; }
+  /* Миниатюры профилей кнопок: кнопки на них не нажимаются, щелчок — сделать профиль текущим */
+  #profile-box .note { margin: 14px 0 12px; }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .thumb {
+    position: relative; display: block; padding: 26px 8px 8px; border-radius: 12px; text-align: left;
+    background: #111418; border: 2px solid transparent; cursor: pointer;
+  }
+  .thumb:hover { border-color: var(--line); }
+  .thumb.on { border-color: var(--accent); cursor: default; }
+  .thumb .n { position: absolute; left: 10px; top: 5px; font-size: 12px; font-weight: 700; color: var(--muted); }
+  .thumb.on .n { color: var(--accent); }
+  .thumb .mini { display: grid; gap: 4px; pointer-events: none; }
+  .thumb .tile {
+    aspect-ratio: 1.25; border-radius: 6px; background: var(--key-color, #232a33); min-width: 0; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px;
+  }
+  .thumb .tile img { width: 40%; max-height: 50%; object-fit: contain; }
+  .thumb .tile .glyph { font-size: 15px; line-height: 1; color: #e8edf3; white-space: nowrap; }
+  .thumb .tile span { font-size: 9px; line-height: 1.1; color: #c9d2dc; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .connected-row .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); }
+  .link { background: none; border: none; color: var(--accent); padding: 0; text-align: left; }
+  .link:hover { text-decoration: underline; }
+  /* QR и панель на странице — одной высоты: переключение не меняет размер блока */
+  #connect.tall { min-height: 470px; }
+  .frame { width: 100%; height: 340px; border: 0; border-radius: 12px; background: #111418; display: block; }
+  .note { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+  /* «Как работают кнопки» — сворачиваемый блок: анимации видны, только когда он раскрыт */
+  details.help { margin: 0; }
+  details.help > summary { list-style: none; display: flex; align-items: center; gap: 10px; color: var(--text); }
+  details.help > summary::-webkit-details-marker { display: none; }
+  details.help > summary h2 { margin: 0; flex: 1; }
+  details.help > summary::after {
+    content: ""; width: 9px; height: 9px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+    transform: translateY(-3px) rotate(45deg); transition: transform 150ms;
+  }
+  details.help[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
+  details.help[open] > summary { margin-bottom: 16px; }
+  /* Как работают кнопки: карточки жестов с маленькой анимацией на рисунке кнопки панели */
+  .gestures { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; }
+  .gesture {
+    background: var(--key); border-radius: 14px; padding: 12px 14px 16px; border: 1px solid transparent;
+    display: grid; gap: 6px; align-content: start; justify-items: start; transition: border-color 150ms;
+  }
+  .gesture:hover { border-color: var(--c); }
+  .gesture b { font-size: 15px; font-weight: 600; }
+  .gesture p { margin: 0; font-size: 13px; color: var(--muted); }
+  .gesture p em { font-style: normal; color: var(--text); }
+  .gesture-menu { display: flex; gap: 8px; align-items: center; margin: 14px 0 0; font-size: 13px; color: var(--muted); }
+  .gesture-menu svg { width: 18px; height: 18px; flex: none; }
+  .scene { width: 64px; height: 64px; position: relative; margin-left: -6px; }
+  .scene .k { position: absolute; left: 10px; top: 10px; width: 44px; height: 44px; border-radius: 11px; background: var(--card); border: 1.5px solid var(--line); }
+  .scene .k::after { content: ""; position: absolute; inset: 13px; border-radius: 5px; background: var(--c); }
+  .scene .touch {
+    position: absolute; left: 22px; top: 22px; width: 20px; height: 20px; border-radius: 50%; opacity: 0;
+    background: color-mix(in srgb, var(--text) 85%, transparent);
+  }
+  .scene .ring { position: absolute; inset: 0; width: 64px; height: 64px; transform: rotate(-90deg); }
+  .scene .ring circle { fill: none; stroke: var(--c); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 176; stroke-dashoffset: 176; opacity: 0; }
+  .tap .touch { animation: g-tap 2.4s infinite; }
+  .tap .k { animation: g-press 2.4s infinite; }
+  @keyframes g-tap { 0%, 20% { opacity: 0; transform: scale(1.6); } 30% { opacity: 1; transform: scale(1); }
+    42% { opacity: 1; box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 60%, transparent); }
+    60% { opacity: 0; box-shadow: 0 0 0 16px transparent; } 100% { opacity: 0; } }
+  @keyframes g-press { 0%, 28%, 46%, 100% { transform: scale(1); } 34% { transform: scale(.92); } }
+  .dbl .touch { animation: g-dbl 2.4s infinite; }
+  .dbl .k { animation: g-press2 2.4s infinite; }
+  @keyframes g-dbl { 0%, 15% { opacity: 0; transform: scale(1.5); } 22% { opacity: 1; transform: scale(1); } 30% { opacity: .2; transform: scale(1.3); }
+    37% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 60%, transparent); }
+    58% { opacity: 0; box-shadow: 0 0 0 16px transparent; } 100% { opacity: 0; } }
+  @keyframes g-press2 { 0%, 19%, 27%, 34%, 42%, 100% { transform: scale(1); } 23%, 38% { transform: scale(.92); } }
+  .hold .touch { animation: g-holdt 2.8s infinite; }
+  .hold .k { animation: g-holdk 2.8s infinite; }
+  .hold .ring circle { animation: g-ring 2.8s infinite; }
+  @keyframes g-holdt { 0%, 12% { opacity: 0; transform: scale(1.5); } 20%, 72% { opacity: 1; transform: scale(1); } 82%, 100% { opacity: 0; } }
+  @keyframes g-holdk { 0%, 18%, 76%, 100% { transform: scale(1); } 22%, 72% { transform: scale(.94); } }
+  @keyframes g-ring { 0%, 20% { stroke-dashoffset: 176; opacity: 1; } 66% { stroke-dashoffset: 0; opacity: 1; } 80%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+  .drag .slot { position: absolute; left: 30px; top: 18px; width: 28px; height: 28px; border-radius: 8px; border: 1.5px dashed var(--line); }
+  .drag .k { left: 4px; top: 14px; width: 36px; height: 36px; animation: g-dragk 3s infinite; }
+  .drag .k::after { inset: 10px; }
+  .drag .touch { left: 12px; top: 22px; animation: g-dragt 3s infinite; }
+  @keyframes g-dragk { 0%, 20% { transform: translateX(0) scale(1); } 28% { transform: scale(1.08); } 60%, 75% { transform: translateX(24px) scale(1.08); } 85%, 100% { transform: translateX(0) scale(1); } }
+  @keyframes g-dragt { 0%, 12% { opacity: 0; } 20%, 75% { opacity: 1; } 28% { transform: translateX(0); } 60%, 75% { transform: translateX(24px); } 85%, 100% { opacity: 0; transform: translateX(0); } }
+  /* Без анимации по настройке Windows «Показывать анимацию» */
+  @media (prefers-reduced-motion: reduce) {
+    .scene * { animation: none !important; }
+    .scene .touch { opacity: 1; }
+    .hold .ring circle { opacity: 1; stroke-dashoffset: 60; }
+  }
+  label.check { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; cursor: pointer; }
+  label.check input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); flex: none; }
+  label.check small { display: block; color: var(--muted); font-size: 12.5px; }
+  label.check a { color: var(--accent); text-decoration: none; }
+  label.check a:hover { text-decoration: underline; }
+  .saved { color: var(--green); font-size: 12.5px; opacity: 0; transition: opacity 200ms; margin-left: 6px; }
+  .saved.show { opacity: 1; }
+  .field { display: grid; gap: 4px; margin: 10px 0; }
+  .field > span { font-size: 13px; color: var(--muted); }
+  .field small { color: var(--muted); font-size: 12px; }
+  .field-row { display: flex; gap: 8px; align-items: center; }
+  input[type=text], input[type=number] {
+    font: inherit; font-size: 14px; color: var(--text); background: var(--key); border: 1px solid var(--line);
+    border-radius: 10px; padding: 7px 10px; min-width: 0; flex: 1;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .error { color: var(--danger); font-size: 13px; min-height: 1em; }
+  /* Меню кнопки (правая кнопка мыши на панели) */
+  #menu {
+    position: fixed; z-index: 20; min-width: 200px; padding: 6px; background: var(--card);
+    border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+  }
+  #menu button { display: flex; width: 100%; justify-content: space-between; gap: 16px; border: 0; background: none; text-align: left; }
+  #menu button:hover:not(:disabled) { background: var(--key); }
+  #menu small { color: var(--muted); }
+  /* Окно «Настроить кнопку» */
+  #hotkey-dialog { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .55); }
+  #hotkey-dialog .box {
+    display: flex; flex-direction: column; width: min(94vw, 740px); height: min(92vh, 600px);
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow);
+  }
+  #hotkey-dialog h2 { font-size: 18px; margin-bottom: 12px; }
+  #hotkey-dialog h3 { margin: 18px 0 8px; }
+  /* Превью — как кнопка на телефоне (цвета плашек те же, что в panel.html) */
+  /* Слева превью и цвет плашки, справа поля; высота окна постоянная — вкладки её не меняют,
+     длинное содержимое прокручивается в правой колонке */
+  .look-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 22px; }
+  .look-side { min-height: 0; }
+  .look-fields { min-height: 0; overflow: auto; padding: 0 4px 4px 2px; }
+  @media (max-width: 640px) {
+    #hotkey-dialog .box { height: auto; max-height: 94vh; overflow: auto; }
+    .look-grid { flex: none; grid-template-columns: 1fr; }
+    .look-fields { overflow: visible; }
+  }
+  .look-stage { display: flex; justify-content: center; padding: 20px 14px; border-radius: 14px; background: #111418; }
+  .look-fields h3:first-child, .look-fields > div:first-child h3 { margin-top: 0; }
+  .pkey {
+    width: 150px; height: 118px; border-radius: 16px; background: var(--key-color, #232a33); color: #e8edf3;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px; overflow: hidden;
+  }
+  .pkey img { width: 40%; max-height: 45%; object-fit: contain; }
+  .pkey .glyph { font-size: 44px; font-weight: 700; line-height: 1; white-space: nowrap; }
+  .pkey .glyph[data-size="2"] { font-size: 36px; }
+  .pkey .glyph[data-size="3"] { font-size: 29px; }
+  .pkey .glyph[data-size="4"] { font-size: 24px; }
+  .pkey .glyph[data-size="5"] { font-size: 20px; }
+  .pkey .label { font-size: 15px; line-height: 1.15; text-align: center; max-width: 100%; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pkey .hint { font: 600 11px Consolas, monospace; opacity: .6; white-space: nowrap; }
+  .pkey img[hidden], .pkey .glyph:empty, .pkey .label:empty, .pkey .hint:empty { display: none; }
+  [data-color="red"] { --key-color: #8e2c2c; }
+  [data-color="orange"] { --key-color: #94481a; }
+  [data-color="yellow"] { --key-color: #85691a; }
+  [data-color="green"] { --key-color: #24713d; }
+  [data-color="teal"] { --key-color: #136a6a; }
+  [data-color="blue"] { --key-color: #2a50a8; }
+  [data-color="purple"] { --key-color: #63409a; }
+  [data-color="pink"] { --key-color: #923166; }
+  [data-color="brown"] { --key-color: #6e4a2c; }
+  .swatches { display: grid; grid-template-columns: repeat(5, 32px); gap: 8px; }
+  .swatches button {
+    width: 32px; height: 32px; padding: 0; border-radius: 50%; border: 2px solid transparent;
+    background: var(--key-color, var(--key)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12);
+  }
+  .swatches button.none { position: relative; box-shadow: inset 0 0 0 1px var(--line); }
+  .swatches button.none::after { content: ""; position: absolute; left: 6px; right: 6px; top: 50%; height: 2px; background: var(--muted); transform: rotate(-45deg); }
+  .swatches button.on { border-color: var(--text); }
+  .icon-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--key); width: fit-content; }
+  .icon-tabs button { border: 0; border-radius: 7px; background: none; color: var(--muted); padding: 4px 12px; }
+  .icon-tabs button:hover { color: var(--text); }
+  .icon-tabs button.on { background: var(--accent); color: #fff; }
+  .icon-pane { margin-top: 8px; }
+  /* Библиотека значков: поиск и сетка; значки белые — плитки тёмные в любой теме */
+  #look-lib-search { width: 100%; }
+  .lib-grid {
+    position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; margin-top: 8px;
+    max-height: 196px; overflow: auto; padding: 2px;
+  }
+  .lib-grid button {
+    aspect-ratio: 1; padding: 8px; border-radius: 9px; border: 2px solid transparent;
+    background: var(--key-color, #232a33); display: flex; align-items: center; justify-content: center;
+  }
+  .lib-grid button img { width: 100%; height: 100%; pointer-events: none; }
+  .lib-grid button:hover { border-color: var(--line); }
+  .lib-grid button.on { border-color: var(--accent); }
+  .lib-empty { grid-column: 1 / -1; color: var(--muted); font-size: 13px; padding: 10px 2px; }
+  /* Своя картинка: место для перетаскивания и вставки; программа: список открытых окон */
+  .drop {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 120px;
+    padding: 14px; border: 2px dashed var(--line); border-radius: 12px; text-align: center; color: var(--muted); font-size: 13px;
+  }
+  .drop.over { border-color: var(--accent); color: var(--text); }
+  .drop img { width: 48px; height: 48px; border-radius: 8px; background: #232a33; padding: 4px; }
+  .fit-switch { display: flex; gap: 4px; margin-top: 8px; }
+  .fit-switch button { font-size: 13px; padding: 4px 10px; }
+  .fit-switch button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .apps { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin-top: 8px; max-height: 168px; overflow: hidden auto; }
+  .apps button {
+    display: flex; align-items: center; gap: 10px; min-width: 0; text-align: left; padding: 5px 8px;
+    border: 2px solid transparent; background: var(--key);
+  }
+  .apps span { flex: 1; }
+  .apps button.on { border-color: var(--accent); }
+  .apps img { width: 24px; height: 24px; flex: none; }
+  .apps span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .apps small { color: var(--muted); margin-left: auto; flex: none; }
+  #look-icon-text { flex: none; width: 7em; font-size: 18px; text-align: center; }
+  #combo-open { display: block; margin-bottom: 4px; }
+  #hotkey-combo {
+    margin: 10px 0 8px; min-height: 56px; display: flex; align-items: center; justify-content: center;
+    border: 2px dashed var(--line); border-radius: 12px; font: 600 20px Consolas, monospace; color: var(--text);
+  }
+  #hotkey-dialog .mods { display: flex; gap: 8px; margin-top: 16px; }
+  #hotkey-dialog .mods button { flex: 1; font-weight: 600; }
+  #hotkey-dialog .mods button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #hotkey-combo.empty { color: var(--muted); font: 14px "Segoe UI", system-ui, sans-serif; }
+  #hotkey-dialog .buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  #hotkey-dialog .buttons .spacer { flex: 1; }
+  /* Кнопка окна «Дополнительно»: «…» после названия — по принятому правилу «откроется окно» */
+  .open-advanced { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 16px; }
+  .open-advanced svg { width: 16px; height: 16px; flex: none; }
+  .open-advanced span::after { content: "…"; }
+  .open-hint { display: block; text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+  /* Окно «Дополнительно»: постоянный размер — вкладки не меняют его высоту */
+  #advanced {
+    width: min(92vw, 680px); height: min(86vh, 560px); padding: 0; color: var(--text);
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+  }
+  #advanced[open] { display: flex; flex-direction: column; outline: none; }
+  #advanced::backdrop { background: rgba(0, 0, 0, .55); }
+  #advanced .head { display: flex; align-items: center; gap: 12px; padding: 16px 20px 0; }
+  #advanced .head h2 { flex: 1; margin: 0; font-size: 18px; }
+  #advanced .x { border: 0; background: none; font-size: 22px; line-height: 1; padding: 4px 8px; color: var(--muted); }
+  #advanced .x:hover { color: var(--text); }
+  /* Рамка фокуса — только при работе с клавиатуры, не после открытия окна мышью */
+  #advanced button:focus:not(:focus-visible) { outline: none; }
+  .tabs { display: flex; gap: 4px; padding: 12px 20px 0; border-bottom: 1px solid var(--line); }
+  .tabs button {
+    border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--muted);
+    padding: 8px 4px; margin-right: 16px;
+  }
+  .tabs button:hover { color: var(--text); border-color: transparent; }
+  .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+  .pane { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px; }
+  .pane.log { display: flex; flex-direction: column; gap: 10px; }
+  .pane.log pre {
+    flex: 1; min-height: 0; margin: 0; padding: 10px 12px; overflow: auto; background: var(--key); border-radius: 10px;
+    font: 12.5px/1.5 Consolas, monospace; white-space: pre-wrap;
+  }
+  .pane.log .field-row { justify-content: flex-end; }
+  .foot {
+    display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding: 12px 20px;
+    border-top: 1px solid var(--line); font-size: 13px; color: var(--muted);
+  }
+  .foot .link { font-size: 13px; word-break: break-all; }
+  .foot #version { margin-left: auto; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <img src="/icon.svg" alt="">
+  <h1>Tapswitch</h1>
+  <span id="browser" class="browser-badge" role="img" tabindex="0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="2.5" y="4" width="19" height="16" rx="2.5"></rect>
+      <path d="M2.5 8.5h19"></path>
+      <circle cx="12" cy="14" r="3.2"></circle>
+      <path d="M8.8 14h6.4"></path>
+    </svg>
+  </span>
+  <span id="phone" class="pill"></span>
+  <div class="langs" id="langs"></div>
+</header>
+
+<main>
+  <div class="stack">
+    <section class="card" id="connect">
+      <div id="qr-card">
+        <h2 data-t="open_on_phone"></h2>
+        <div class="qr-row">
+          <div class="qr"><img id="qr" alt="QR"></div>
+          <ol>
+            <li data-t="step_camera"></li>
+            <li data-t="step_link"></li>
+            <li data-t="step_bookmark"></li>
+          </ol>
+        </div>
+        <div class="url">
+          <code id="url"></code>
+          <button id="copy" data-t="copy"></button>
+        </div>
+        <details>
+          <summary data-t="trouble"></summary>
+          <ul>
+            <li data-t="trouble_wifi"></li>
+            <li data-t="trouble_firewall"></li>
+            <li data-t="trouble_vpn"></li>
+            <li data-t="trouble_address"></li>
+          </ul>
+        </details>
+      </div>
+      <div id="connected-card" class="connected-row" hidden>
+        <span class="dot"></span>
+        <span id="connected-text"></span>
+        <button class="link" id="another" data-t="connect_another"></button>
+      </div>
+      <div id="profile-box" hidden>
+        <p class="note" data-t="profiles_hint"></p>
+        <div class="thumbs" id="profile-thumbs"></div>
+      </div>
+      <div id="page-panel" hidden>
+        <div class="panel-head">
+          <h2 data-t="panel_here"></h2>
+          <div class="profile-switch" id="page-profiles" role="group" hidden></div>
+        </div>
+        <div id="frame-box"></div>
+        <p class="note" data-t="panel_here_note"></p>
+      </div>
+    </section>
+
+    <details class="card help" id="gestures-help">
+      <summary><h2 data-t="gestures_title"></h2></summary>
+      <div class="gestures">
+        <div class="gesture" style="--c: var(--accent)">
+          <div class="scene tap" aria-hidden="true"><div class="k"></div><div class="touch"></div></div>
+          <b data-t="gesture_tap"></b>
+          <p><em data-t="gesture_tap_do"></em> <span data-t="gesture_tap_text"></span></p>
+        </div>
+        <div class="gesture" style="--c: var(--accent)">
+          <div class="scene hold" aria-hidden="true"><div class="k"></div><svg class="ring" viewBox="0 0 64 64"><circle cx="32" cy="32" r="28"/></svg><div class="touch"></div></div>
+          <b data-t="gesture_hold"></b>
+          <p><em data-t="gesture_hold_do"></em> <span data-t="gesture_hold_text"></span></p>
+        </div>
+        <div class="gesture" style="--c: var(--accent)">
+          <div class="scene dbl" aria-hidden="true"><div class="k"></div><div class="touch"></div></div>
+          <b data-t="gesture_double"></b>
+          <p><em data-t="gesture_double_do"></em> <span data-t="gesture_double_text"></span></p>
+        </div>
+        <div class="gesture" style="--c: var(--accent)">
+          <div class="scene drag" aria-hidden="true"><div class="slot"></div><div class="k"></div><div class="touch"></div></div>
+          <b data-t="gesture_drag"></b>
+          <p><em data-t="gesture_drag_do"></em> <span data-t="gesture_drag_text"></span></p>
+        </div>
+      </div>
+      <p class="gesture-menu" id="gesture-menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 3v7M6 10h12"/><path d="M12.9 3.9a5 5 0 0 1 4.2 5.2h-4.2z" fill="currentColor" stroke="none"/></svg>
+        <span data-t="gesture_menu"></span>
+      </p>
+    </details>
+  </div>
+
+  <aside class="stack">
+    <section class="card">
+      <h3 data-t="group_panel"></h3>
+      <label class="check"><input type="checkbox" data-setting="phone_panel">
+        <span><span data-t="phone_panel"></span><span class="saved"></span><small data-t="phone_panel_hint"></small></span></label>
+      <label class="check"><input type="checkbox" data-setting="confirm_bind">
+        <span><span data-t="confirm_bind_setting"></span><span class="saved"></span></span></label>
+      <label class="check"><input type="checkbox" data-setting="icon_project">
+        <span><span data-t="icon_project"></span><span class="saved"></span>
+          <small><span data-t="icon_project_hint"></span> <a href="https://tutor.diworld.pro" target="_blank" rel="noopener">tutor.diworld.pro</a></small></span></label>
+
+      <h3 data-t="group_program"></h3>
+      <label class="check"><input type="checkbox" id="autostart">
+        <span><span data-t="autostart"></span><span class="saved"></span><small data-t="autostart_hint"></small></span></label>
+
+      <button class="open-advanced" id="open-advanced" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span data-t="advanced"></span>
+      </button>
+      <small class="open-hint" data-t="advanced_hint"></small>
+    </section>
+  </aside>
+</main>
+
+<dialog id="advanced" aria-labelledby="advanced-title" tabindex="-1">
+  <div class="head">
+    <h2 id="advanced-title" data-t="advanced"></h2>
+    <button class="x" id="close-advanced" data-t-title="close">×</button>
+  </div>
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="panel" data-t="tab_panel"></button>
+    <button role="tab" data-tab="connection" data-t="tab_connection"></button>
+    <button role="tab" data-tab="log" data-t="log_title"></button>
+  </div>
+  <div class="pane" data-pane="panel">
+    <label class="check"><input type="checkbox" data-setting="profiles_enabled">
+      <span><span data-t="profiles_setting"></span><span class="saved"></span><small data-t="profiles_setting_hint"></small></span></label>
+  </div>
+  <div class="pane" data-pane="connection" hidden>
+    <div class="field">
+      <span data-t="port"></span>
+      <div class="field-row"><input type="number" id="port" min="1024" max="65535"></div>
+    </div>
+    <div class="field">
+      <span data-t="host"></span>
+      <div class="field-row"><input type="text" id="host" spellcheck="false"></div>
+      <small data-t="host_hint"></small>
+    </div>
+    <div class="field-row">
+      <button id="save-web" class="primary" data-t="save"></button><span class="saved" id="web-saved"></span>
+    </div>
+    <div class="error" id="web-error"></div>
+    <p class="note" data-t="restart_note"></p>
+  </div>
+  <div class="pane log" data-pane="log" hidden>
+    <pre id="log-text"></pre>
+    <div class="field-row"><button id="copy-log" data-t="copy"></button></div>
+  </div>
+  <div class="foot">
+    <span><span data-t="program_folder"></span>:</span>
+    <button class="link" id="folder"></button>
+    <span id="version"></span>
+  </div>
+</dialog>
+
+<div id="menu" hidden>
+  <button id="menu-clear"><span data-t="menu_clear"></span></button>
+  <button id="menu-hotkey"><span data-t="menu_hotkey"></span><small id="menu-hotkey-value"></small></button>
+</div>
+
+<div id="hotkey-dialog" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="hotkey-title">
+    <h2 id="hotkey-title"></h2>
+    <div class="look-grid">
+    <div class="look-side">
+      <div class="look-stage">
+        <div class="pkey" id="look-preview"><img hidden alt=""><div class="glyph"></div><div class="label"></div><div class="hint"></div></div>
+      </div>
+      <h3 data-t="look_color"></h3>
+      <div class="swatches" id="look-colors" role="radiogroup"></div>
+    </div>
+    <div class="look-fields">
+
+    <div id="combo-section">
+      <h3 data-t="look_combo"></h3>
+      <div class="note" data-t="hotkey_hint"></div>
+      <div class="mods" id="hotkey-mods" role="group">
+        <button data-mod="Ctrl">Ctrl</button><button data-mod="Alt">Alt</button><button data-mod="Shift">Shift</button><button data-mod="Win">Win</button>
+      </div>
+      <div id="hotkey-combo" tabindex="0"></div>
+      <button class="link" id="hotkey-remove" data-t="look_combo_remove"></button>
+      <div class="note" id="combo-removed" data-t="look_combo_removed" hidden></div>
+    </div>
+    <button class="link" id="combo-open" data-t="look_make_combo"></button>
+
+    <h3 data-t="look_caption"></h3>
+    <div class="field-row"><input type="text" id="look-caption" maxlength="40" spellcheck="false"></div>
+
+    <h3 data-t="look_icon"></h3>
+    <!-- Вкладки «Библиотека», «Своя картинка», «Программа» добавят следующие задачи -->
+    <div class="icon-tabs" id="look-icon-tabs" role="tablist">
+      <button role="tab" data-icon-tab="auto" data-t="look_icon_auto"></button>
+      <button role="tab" data-icon-tab="lib" data-t="look_icon_lib"></button>
+      <button role="tab" data-icon-tab="img" data-t="look_icon_img"></button>
+      <button role="tab" data-icon-tab="app" data-t="look_icon_app"></button>
+      <button role="tab" data-icon-tab="text" data-t="look_icon_text"></button>
+    </div>
+    <div class="icon-pane" data-icon-pane="auto"><div class="note" data-t="look_icon_auto_hint"></div></div>
+    <div class="icon-pane" data-icon-pane="lib" hidden>
+      <div class="field-row"><input type="text" id="look-lib-search" spellcheck="false" autocomplete="off"></div>
+      <div class="lib-grid" id="look-lib" role="listbox"></div>
+    </div>
+    <div class="icon-pane" data-icon-pane="img" hidden>
+      <div class="drop" id="look-drop">
+        <img id="look-img-thumb" alt="" hidden>
+        <span data-t="look_img_drop"></span>
+        <button id="look-img-choose" data-t="look_img_choose"></button>
+        <input type="file" id="look-img-file" accept="image/png,image/jpeg,image/svg+xml,image/x-icon,image/vnd.microsoft.icon,image/webp,image/gif,.ico,.svg" hidden>
+      </div>
+      <div class="fit-switch" role="group">
+        <button data-fit="cover" data-t="look_img_crop"></button><button data-fit="contain" data-t="look_img_fit"></button>
+      </div>
+    </div>
+    <div class="icon-pane" data-icon-pane="app" hidden>
+      <div class="field-row">
+        <input type="text" id="look-app-path" spellcheck="false" autocomplete="off">
+        <button id="look-app-show" data-t="look_app_show"></button>
+      </div>
+      <div class="field-row" style="margin-top: 10px">
+        <span class="note" style="margin: 0; flex: 1" data-t="look_app_windows"></span>
+        <button class="link" id="look-app-refresh" data-t="look_app_refresh"></button>
+      </div>
+      <div class="apps" id="look-apps"></div>
+    </div>
+    <div class="icon-pane" data-icon-pane="text" hidden>
+      <div class="field-row"><input type="text" id="look-icon-text" spellcheck="false" autocomplete="off"></div>
+      <div class="note" data-t="look_icon_text_hint"></div>
+    </div>
+    </div>
+    </div>
+
+    <div class="error" id="hotkey-error"></div>
+    <div class="buttons">
+      <button id="look-reset" data-t="look_reset" data-t-title="look_reset_hint"></button>
+      <button id="binding-reset" data-t="look_binding_reset" data-t-title="look_binding_reset_hint"></button>
+      <span class="spacer"></span>
+      <button id="hotkey-cancel" data-t="cancel"></button>
+      <button id="hotkey-save" class="primary" data-t="save"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const api = async (path, body) => {
+  const options = body ? {
+    method: "POST", body: JSON.stringify(body),
+    headers: {"Content-Type": "application/json", "X-Agent-Control": "1"},
+  } : {};
+  const response = await fetch(path, options);
+  if (!response.ok) throw new Error(response.status);
+  return response.json();
+};
+
+// Строки — словарь языка из exe (app-rs/locales). Язык по умолчанию — русский.
+let strings = {};
+let pageLang = "";
+const t = (name) => strings[name] ?? name;
+const tf = (name, ...args) => args.reduce((text, arg, i) => text.replace(`{${i}}`, arg), t(name));
+async function loadStrings(lang) {
+  if (lang === pageLang) return;
+  try { strings = await api(`/api/strings?lang=${encodeURIComponent(lang)}`); } catch { return; }
+  pageLang = lang;
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach((element) => { element.textContent = t(element.dataset.t); });
+  document.querySelectorAll("[data-t-title]").forEach((element) => { element.title = t(element.dataset.tTitle); });
+}
+
+const flash = (element, text = t("saved")) => {
+  if (!element) return;
+  element.textContent = text;
+  element.classList.add("show");
+  clearTimeout(element.timer);
+  element.timer = setTimeout(() => element.classList.remove("show"), 1600);
+};
+
+let state = null;
+let showQrAnyway = false;
+
+function renderLangs() {
+  const box = $("langs");
+  const codes = state.language.languages.map((l) => l.code).join();
+  if (box.dataset.codes !== codes) {
+    box.dataset.codes = codes;
+    // Русский первым, остальные — по алфавиту.
+    const languages = [...state.language.languages].sort((a, b) => (a.code === "ru" ? -1 : b.code === "ru" ? 1 : a.code.localeCompare(b.code)));
+    box.replaceChildren(...languages.map((language) => {
+      const button = document.createElement("button");
+      button.dataset.code = language.code;
+      button.textContent = language.short || language.code;
+      button.title = language.name;
+      button.onclick = () => act({action: "language", value: language.code});
+      return button;
+    }));
+  }
+  box.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.code === state.language.current));
+}
+
+function renderPhone() {
+  const phone = state.phone, pill = $("phone");
+  pill.classList.toggle("on", phone.connected);
+  pill.textContent = !phone.connected ? t("phone_off") : phone.local ? t("phone_page") : t("phone_on");
+}
+
+function renderBrowser() {
+  const browser = state.browser ?? {connected: false, browsers: []}, badge = $("browser");
+  const names = Array.isArray(browser.browsers) ? browser.browsers : [];
+  badge.classList.toggle("on", !!browser.connected);
+  const title = !browser.connected
+    ? t("browser_off_hint")
+    : names.length === 1 ? tf("browser_on_hint", names[0]) : tf("browser_on_many", names.join(", "));
+  badge.title = title;
+  badge.setAttribute("aria-label", title);
+}
+
+function renderConnect() {
+  const onPhone = state.settings.phone_panel;
+  const phone = state.phone.connected && !state.phone.local;
+  $("qr-card").hidden = !onPhone || (phone && !showQrAnyway);
+  $("connected-card").hidden = !onPhone || !phone || showQrAnyway;
+  $("profile-box").hidden = $("connected-card").hidden || !state.profiles;
+  if (!$("profile-box").hidden) renderThumbs();
+  renderPageProfiles(onPhone);
+  $("page-panel").hidden = onPhone;
+  $("connect").classList.toggle("tall", !$("qr-card").hidden || !onPhone);
+  $("gesture-menu").hidden = onPhone;
+  $("connected-text").textContent = `${t("connected_to")} · ${state.phone.peer ?? ""}`;
+  $("url").textContent = state.url;
+  if (!$("qr").src) $("qr").src = "/api/qr.svg";
+  // Панель на странице — это подключение вместо телефона: только пока флажок снят.
+  const box = $("frame-box");
+  if (!onPhone && !box.firstChild) {
+    const frame = document.createElement("iframe");
+    frame.className = "frame";
+    frame.id = "panel-frame";
+    frame.src = state.local_url;
+    frame.title = t("panel_here");
+    box.append(frame);
+  } else if (onPhone && box.firstChild) {
+    box.replaceChildren();
+    closeMenu();
+  }
+}
+
+// Кнопки профилей над панелью на странице.
+function renderPageProfiles(onPhone) {
+  const box = $("page-profiles");
+  box.hidden = onPhone || !state.profiles;
+  if (box.hidden) return;
+  if (box.children.length !== state.profiles.length) {
+    box.replaceChildren(...state.profiles.map((_, index) => {
+      const button = document.createElement("button");
+      button.textContent = index + 1;
+      button.title = tf("profile_n", index + 1);
+      button.onclick = () => { if (index !== state.profile) act({action: "profile", profile: index}); };
+      return button;
+    }));
+  }
+  [...box.children].forEach((button, index) => {
+    button.classList.toggle("on", index === state.profile);
+    button.setAttribute("aria-pressed", index === state.profile);
+  });
+}
+
+// Миниатюры перестраиваются, только когда что-то на них поменялось: картинки не мигают.
+function renderThumbs() {
+  const signature = JSON.stringify([state.profile, state.profiles, state.layout]);
+  const box = $("profile-thumbs");
+  if (box.dataset.signature === signature) return;
+  box.dataset.signature = signature;
+  const cols = state.layout?.cols || 4;
+  box.replaceChildren(...state.profiles.map((keys, index) => {
+    const thumb = document.createElement("button");
+    thumb.className = "thumb" + (index === state.profile ? " on" : "");
+    thumb.title = tf("profile_n", index + 1);
+    const number = document.createElement("span");
+    number.className = "n";
+    number.textContent = index + 1;
+    const mini = document.createElement("div");
+    mini.className = "mini";
+    mini.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    mini.append(...keys.map((key) => {
+      const tile = document.createElement("div");
+      tile.className = "tile" + (key.bound ? "" : " empty");
+      if (key.color) tile.dataset.color = key.color;
+      if (key.icon_text) {
+        const glyph = document.createElement("b");
+        glyph.className = "glyph";
+        glyph.textContent = key.icon_text;
+        tile.append(glyph);
+      } else if (key.icon) {
+        const img = document.createElement("img");
+        img.src = key.icon;
+        img.alt = "";
+        tile.append(img);
+      }
+      // Пустая кнопка на миниатюре — просто пустая плитка, без «Нет сессии» (но со своим видом).
+      if (key.bound || key.styled) {
+        const label = document.createElement("span");
+        label.textContent = key.label;
+        tile.append(label);
+      }
+      return tile;
+    }));
+    thumb.append(number, mini);
+    thumb.onclick = () => { if (index !== state.profile) act({action: "profile", profile: index}); };
+    return thumb;
+  }));
+}
+
+function renderSettings() {
+  document.querySelectorAll("[data-setting]").forEach((box) => {
+    if (document.activeElement !== box) box.checked = !!state.settings[box.dataset.setting];
+  });
+  if (document.activeElement !== $("autostart")) $("autostart").checked = state.autostart;
+  const advanced = state.advanced;
+  if (document.activeElement !== $("port") && !$("port").dataset.edited) $("port").value = advanced.saved_port ?? advanced.port;
+  if (document.activeElement !== $("host") && !$("host").dataset.edited) $("host").value = advanced.saved_host ?? "";
+  $("host").placeholder = `${advanced.detected_host} — ${t("host_auto")}`;
+  $("folder").textContent = advanced.folder;
+  $("version").textContent = `${t("version")} ${advanced.version}`;
+}
+
+async function refresh() {
+  try {
+    state = await api("/api/state");
+  } catch {
+    $("phone").textContent = t("offline");
+    $("phone").classList.remove("on");
+    $("browser").classList.remove("on");
+    $("browser").title = t("browser_off_hint");
+    return;
+  }
+  await loadStrings(state.language.current);
+  renderLangs();
+  renderPhone();
+  renderBrowser();
+  renderConnect();
+  renderSettings();
+}
+
+async function act(body, saved) {
+  try {
+    const answer = await api("/api/action", body);
+    if (!answer.ok) throw new Error(answer.error || t("error"));
+    flash(saved);
+    return true;
+  } catch (error) {
+    alert(`${t("error")}: ${error.message}`);
+    return false;
+  } finally {
+    refresh();
+  }
+}
+
+document.querySelectorAll("[data-setting]").forEach((box) => {
+  box.onchange = () => {
+    if (box.dataset.setting === "phone_panel") showQrAnyway = false;
+    act({action: "setting", name: box.dataset.setting, value: box.checked}, box.closest("label").querySelector(".saved"));
+  };
+});
+$("autostart").onchange = () =>
+  act({action: "autostart", value: $("autostart").checked}, $("autostart").closest("label").querySelector(".saved"));
+
+const copy = async (text, button) => {
+  try { await navigator.clipboard.writeText(text); } catch { return; }
+  const before = button.textContent;
+  button.textContent = t("copied");
+  setTimeout(() => { button.textContent = before; }, 1200);
+};
+$("copy").onclick = () => copy(state?.url ?? "", $("copy"));
+$("another").onclick = () => { showQrAnyway = true; renderConnect(); };
+
+["port", "host"].forEach((id) => { $(id).oninput = () => { $(id).dataset.edited = "1"; }; });
+$("save-web").onclick = async () => {
+  $("web-error").textContent = "";
+  try {
+    const answer = await api("/api/action", {action: "web", port: Number($("port").value), host: $("host").value});
+    if (!answer.ok) { $("web-error").textContent = answer.error; return; }
+    delete $("port").dataset.edited;
+    delete $("host").dataset.edited;
+    flash($("web-saved"));
+  } catch (error) {
+    $("web-error").textContent = `${t("error")}: ${error.message}`;
+  }
+};
+$("folder").onclick = () => act({action: "open_folder"});
+
+// --- меню кнопки: правая кнопка мыши на панели внутри страницы
+let menuKey = null;
+function closeMenu() { $("menu").hidden = true; menuKey = null; }
+window.addEventListener("message", (event) => {
+  if (event.origin !== location.origin || event.data?.type !== "key-menu" || !state) return;
+  const frame = $("panel-frame");
+  if (!frame || event.source !== frame.contentWindow) return;
+  const info = state.keys[event.data.key];
+  if (!info) return;
+  menuKey = event.data.key;
+  $("menu-clear").disabled = !info.bound;
+  $("menu-hotkey-value").textContent = info.keys || "";
+  const box = frame.getBoundingClientRect(), menu = $("menu");
+  menu.hidden = false;
+  const x = Math.min(box.left + event.data.x, innerWidth - menu.offsetWidth - 8);
+  const y = Math.min(box.top + event.data.y, innerHeight - menu.offsetHeight - 8);
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+});
+document.addEventListener("pointerdown", (event) => { if (!$("menu").contains(event.target)) closeMenu(); });
+window.addEventListener("message", (event) => {
+  if (event.origin === location.origin && event.data?.type === "panel-pointer") closeMenu();
+});
+$("menu-clear").onclick = () => { const key = menuKey; closeMenu(); act({action: "clear", key}); };
+$("menu-hotkey").onclick = () => { const key = menuKey; closeMenu(); openHotkey(key); };
+
+// --- окно «Настроить кнопку»: сочетание (у кнопок-сочетаний), подпись, цвет плашки, иконка.
+// Модификаторы сочетания можно отметить мышью (Win+H браузер не получит — Windows перехватит его
+// раньше), клавишу — нажать в рамке сочетания; сочетания, которые доходят до браузера, — целиком.
+const MODIFIERS = ["Ctrl", "Alt", "Shift", "Win"];
+const MODIFIER_CODES = ["ControlLeft", "ControlRight", "AltLeft", "AltRight", "ShiftLeft", "ShiftRight", "MetaLeft", "MetaRight", "OSLeft", "OSRight"];
+const COLORS = ["red", "orange", "yellow", "green", "teal", "blue", "purple", "pink", "brown"];
+const TEXT_ICON = "text:", LIB_ICON = "lib:";
+let library = null, libIcon = "";  // значки библиотеки (загружаются один раз) и выбранный
+const IMG_ICON = "img:", APP_ICON = "app:";
+// Своя картинка: хэш загруженной, исходник (для «обрезать/вписать») и способ; программа: путь и адрес иконки.
+let userImg = "", imgSource = null, imgFit = "cover", appPath = "", appUrl = "";
+let hotkeyKey = null, hotkeyMods = new Set(), hotkeyName = "";
+// Сочетание: показано ли (у кнопки-сочетания или после «Сделать кнопкой-сочетанием»), убрать ли.
+let comboShown = false, comboRemoved = false;
+let lookColor = "", iconTab = "auto";
+function keyName(code) {
+  let m;
+  if ((m = code.match(/^Key([A-Z])$/))) return m[1];
+  if ((m = code.match(/^Digit([0-9])$/))) return m[1];
+  if ((m = code.match(/^Numpad([0-9])$/))) return `Num${m[1]}`;
+  if ((m = code.match(/^F([0-9]{1,2})$/)) && +m[1] >= 1 && +m[1] <= 24) return `F${m[1]}`;
+  const named = {Space: "Space", Enter: "Enter", NumpadEnter: "Enter", Escape: "Escape", Backspace: "Backspace", Tab: "Tab",
+    ArrowUp: "Up", ArrowDown: "Down", ArrowLeft: "Left", ArrowRight: "Right", Home: "Home", End: "End",
+    PageUp: "PageUp", PageDown: "PageDown", Insert: "Insert", Delete: "Delete", PrintScreen: "PrintScreen",
+    AudioVolumeMute: "VolumeMute", AudioVolumeDown: "VolumeDown", AudioVolumeUp: "VolumeUp",
+    MediaTrackNext: "MediaNext", MediaTrackPrevious: "MediaPrev", MediaStop: "MediaStop", MediaPlayPause: "MediaPlayPause"};
+  return named[code] ?? null;
+}
+const hotkeyCombo = () => (hotkeyName && !comboRemoved ? [...MODIFIERS.filter((m) => hotkeyMods.has(m)), hotkeyName].join("+") : "");
+/** Сколько знаков видно (эмодзи из нескольких символов — один знак). */
+const glyphCount = (text) => (window.Intl?.Segmenter ? [...new Intl.Segmenter().segment(text)].length : [...text].length);
+const iconText = () => $("look-icon-text").value.trim();
+
+function showHotkey() {
+  document.querySelectorAll("#hotkey-mods button").forEach((button) => {
+    const on = hotkeyMods.has(button.dataset.mod);
+    button.classList.toggle("on", on);
+    button.setAttribute("aria-pressed", on);
+  });
+  const box = $("hotkey-combo"), mods = MODIFIERS.filter((m) => hotkeyMods.has(m));
+  const text = hotkeyName ? [...mods, hotkeyName].join("+") : mods.length ? `${mods.join("+")}+…` : t("hotkey_prompt");
+  box.textContent = text.replaceAll("+", " + ");
+  box.classList.toggle("empty", !hotkeyName && !mods.length);
+  const current = state.keys[hotkeyKey]?.keys || "";
+  $("combo-section").hidden = !comboShown;
+  $("combo-open").hidden = comboShown;
+  $("hotkey-remove").hidden = !current || comboRemoved;
+  $("binding-reset").disabled = !current || comboRemoved;
+  $("combo-removed").hidden = !comboRemoved;
+  box.style.opacity = comboRemoved ? ".4" : "";
+  showPreview();
+}
+
+// Превью: то, что покажет кнопка на телефоне после сохранения.
+function showPreview() {
+  const info = state.keys[hotkeyKey] || {};
+  const preview = $("look-preview"), caption = $("look-caption").value.trim(), combo = hotkeyCombo();
+  const text = iconTab === "text" ? iconText() : "";
+  if (lookColor) preview.dataset.color = lookColor; else delete preview.dataset.color;
+  const glyph = preview.querySelector(".glyph");
+  glyph.textContent = text;
+  glyph.dataset.size = Math.min(5, glyphCount(text));
+  const img = preview.querySelector("img");
+  // Значок библиотеки; новое сочетание — иконка клавиатуры; иначе автоматическая иконка кнопки.
+  const comboNew = combo && combo !== (info.keys || "");
+  const custom = iconTab === "lib" && libIcon ? `/lib/${libIcon}.svg`
+    : iconTab === "img" && userImg ? `/usericon/${userImg}.png`
+    : iconTab === "app" && appUrl ? appUrl : "";
+  const auto = custom || (comboNew ? "/icons/keyboard.svg" : comboRemoved ? "" : info.auto_icon || "");
+  img.hidden = !!text || !auto;
+  if (!img.hidden && img.getAttribute("src") !== auto) img.src = auto;
+  const autoLabel = comboNew ? combo : comboRemoved ? "" : info.auto_label || "";
+  preview.querySelector(".label").textContent = caption || autoLabel;
+  preview.querySelector(".hint").textContent = caption && combo ? combo.replaceAll("+", " + ") : "";
+  $("look-caption").placeholder = `${autoLabel || "—"} · ${t("look_caption_hint")}`;
+  const tooLong = glyphCount(text) > 5;
+  $("hotkey-error").textContent = tooLong ? t("look_icon_text_long") : "";
+  $("hotkey-save").disabled = tooLong || (iconTab === "text" && !text) || (iconTab === "lib" && !libIcon)
+    || (iconTab === "img" && !userImg) || (iconTab === "app" && !appPath);
+  if (!tooLong && iconError) $("hotkey-error").textContent = iconError;
+}
+
+function showColors() {
+  const box = $("look-colors");
+  if (!box.children.length) {
+    box.replaceChildren(...["", ...COLORS].map((color) => {
+      const button = document.createElement("button");
+      button.setAttribute("role", "radio");
+      if (color) button.dataset.color = color; else button.className = "none";
+      button.onclick = () => { lookColor = color; showColors(); if (iconTab === "lib") showLibrary(); };
+      return button;
+    }));
+  }
+  [...box.children].forEach((button) => {
+    const color = button.dataset.color || "";
+    button.title = t(color ? `color_${color}` : "look_color_none");
+    button.classList.toggle("on", color === lookColor);
+    button.setAttribute("aria-checked", color === lookColor);
+  });
+  showPreview();
+}
+
+// Сетка библиотеки: поиск по всем словам (рус/англ, имя значка); цвет плиток — цвет плашки.
+async function showLibrary() {
+  if (!library) {
+    try { library = await api("/api/library"); } catch { library = []; }
+  }
+  const norm = (text) => text.toLowerCase().replaceAll("ё", "е");
+  const words = norm($("look-lib-search").value.trim()).split(/\s+/).filter(Boolean);
+  const found = library.filter((icon) => {
+    const text = norm(`${icon.name} ${icon.ru} ${icon.en}`);
+    return words.every((word) => text.includes(word));
+  });
+  const grid = $("look-lib");
+  if (lookColor) grid.dataset.color = lookColor; else delete grid.dataset.color;
+  const signature = found.map((icon) => icon.name).join();
+  if (grid.dataset.signature !== signature) {
+    grid.dataset.signature = signature;
+    grid.replaceChildren(...found.map((icon) => {
+      const button = document.createElement("button");
+      button.dataset.name = icon.name;
+      button.title = `${icon.ru.split(" ")[0]} · ${icon.name}`;
+      button.setAttribute("role", "option");
+      const img = document.createElement("img");
+      img.src = `/lib/${icon.name}.svg`;
+      img.alt = icon.name;
+      img.loading = "lazy";
+      button.append(img);
+      button.onclick = () => { libIcon = icon.name; showLibrary(); };
+      return button;
+    }));
+    if (!found.length) grid.innerHTML = `<div class="lib-empty">${t("look_icon_lib_none")}</div>`;
+  }
+  grid.querySelectorAll("button").forEach((button) => {
+    button.classList.toggle("on", button.dataset.name === libIcon);
+    button.setAttribute("aria-selected", button.dataset.name === libIcon);
+  });
+  // Выбранный значок — в видимой части сетки (прокручивается только сетка, не окно).
+  const chosen = grid.querySelector("button.on");
+  if (chosen && (chosen.offsetTop < grid.scrollTop || chosen.offsetTop + chosen.offsetHeight > grid.scrollTop + grid.clientHeight)) {
+    grid.scrollTop = chosen.offsetTop - grid.clientHeight / 2 + chosen.offsetHeight / 2;
+  }
+  showPreview();
+}
+$("look-lib-search").oninput = showLibrary;
+
+function showIconTab(name) {
+  iconTab = name;
+  document.querySelectorAll("[data-icon-tab]").forEach((tab) => {
+    tab.classList.toggle("on", tab.dataset.iconTab === name);
+    tab.setAttribute("aria-selected", tab.dataset.iconTab === name);
+  });
+  document.querySelectorAll("[data-icon-pane]").forEach((pane) => { pane.hidden = pane.dataset.iconPane !== name; });
+  if (name === "app") showApps();
+  if (name === "img") showImage();
+  return name === "lib" ? showLibrary() : showPreview();
+}
+
+// --- своя картинка: файл, перетаскивание или вставка; уменьшается до 128×128 PNG здесь же
+// (canvas), программе приходит только PNG — SVG становится растром, его код не выполнится.
+let iconError = "";
+const IMAGE_SIZE = 128;
+function showImage() {
+  const thumb = $("look-img-thumb");
+  thumb.hidden = !userImg;
+  if (userImg) thumb.src = `/usericon/${userImg}.png`;
+  document.querySelectorAll("[data-fit]").forEach((b) => b.classList.toggle("on", b.dataset.fit === imgFit));
+  document.querySelector(".fit-switch").hidden = !imgSource;
+}
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function uploadImage() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = IMAGE_SIZE;
+  const context = canvas.getContext("2d");
+  const w = imgSource.naturalWidth || IMAGE_SIZE, h = imgSource.naturalHeight || IMAGE_SIZE;
+  // cover — обрезать до квадрата по центру; contain — вписать целиком с прозрачными полями.
+  const scale = (imgFit === "cover" ? Math.max : Math.min)(IMAGE_SIZE / w, IMAGE_SIZE / h);
+  const dw = w * scale, dh = h * scale;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(imgSource, (IMAGE_SIZE - dw) / 2, (IMAGE_SIZE - dh) / 2, dw, dh);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  const response = await fetch("/api/icon", {method: "POST", body: blob, headers: {"Content-Type": "image/png", "X-Agent-Control": "1"}});
+  const answer = await response.json();
+  if (!answer.ok) throw new Error(answer.error);
+  userImg = answer.hash;
+}
+async function takeImage(file) {
+  if (!file || hotkeyKey === null) return;
+  iconError = "";
+  try {
+    imgSource = await loadImage(file);
+    await uploadImage();
+  } catch (error) {
+    iconError = `${t("look_img_bad")}${error?.message ? `: ${error.message}` : ""}`;
+  }
+  if (iconTab !== "img") await showIconTab("img");
+  showImage();
+  showPreview();
+}
+$("look-img-choose").onclick = () => $("look-img-file").click();
+$("look-img-file").onchange = () => { takeImage($("look-img-file").files[0]); $("look-img-file").value = ""; };
+const drop = $("look-drop");
+drop.addEventListener("dragover", (event) => { event.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (event) => {
+  event.preventDefault();
+  drop.classList.remove("over");
+  takeImage(event.dataTransfer.files[0]);
+});
+// Вставка картинки из буфера (Ctrl+V) в любом месте окна, кроме текстовых полей.
+document.addEventListener("paste", (event) => {
+  if ($("hotkey-dialog").hidden) return;
+  const file = [...(event.clipboardData?.files || [])].find((f) => f.type.startsWith("image/"));
+  if (!file) return;
+  event.preventDefault();
+  takeImage(file);
+});
+document.querySelectorAll("[data-fit]").forEach((button) => {
+  button.onclick = async () => {
+    if (imgFit === button.dataset.fit || !imgSource) return;
+    imgFit = button.dataset.fit;
+    iconError = "";
+    try { await uploadImage(); } catch (error) { iconError = `${t("look_img_bad")}: ${error.message}`; }
+    showImage();
+    showPreview();
+  };
+});
+
+// --- иконка программы: из открытого окна или по пути к .exe
+async function showApps() {
+  const box = $("look-apps");
+  let windows = [];
+  try { windows = await api("/api/windows"); } catch {}
+  box.replaceChildren(...windows.map((item) => {
+    const button = document.createElement("button");
+    button.dataset.path = item.path;
+    button.title = item.path;
+    const img = document.createElement("img");
+    img.src = item.icon;
+    img.alt = "";
+    const title = document.createElement("span");
+    title.textContent = item.title;
+    const name = document.createElement("small");
+    name.textContent = item.name;
+    button.append(img, title, name);
+    button.onclick = () => chooseApp(item.path, item.icon);
+    return button;
+  }));
+  if (!windows.length) box.innerHTML = `<div class="lib-empty">${t("look_app_none")}</div>`;
+  markApp();
+}
+function markApp() {
+  $("look-apps").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.path.toLowerCase() === appPath.toLowerCase()));
+}
+function chooseApp(path, url) {
+  appPath = path;
+  appUrl = url;
+  iconError = "";
+  $("look-app-path").value = path;
+  markApp();
+  showPreview();
+}
+$("look-app-refresh").onclick = showApps;
+$("look-app-show").onclick = async () => {
+  try {
+    const answer = await api("/api/action", {action: "program", path: $("look-app-path").value});
+    if (!answer.ok) throw new Error(answer.error);
+    chooseApp(answer.path, answer.icon);
+  } catch (error) {
+    iconError = error.message;
+    showPreview();
+  }
+};
+$("look-app-path").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); $("look-app-show").click(); }
+});
+document.querySelectorAll("[data-icon-tab]").forEach((tab) => {
+  tab.onclick = async () => {
+    await showIconTab(tab.dataset.iconTab);
+    if (iconTab === "text") $("look-icon-text").focus();
+    if (iconTab === "lib") {
+      $("look-lib-search").focus({preventScroll: true});
+      // Сетка значков ниже строки поиска — прокрутить к ней (когда она уже нарисована),
+      // иначе видна только строка поиска.
+      document.querySelector('[data-icon-pane="lib"]').scrollIntoView({block: "end"});
+    }
+  };
+});
+
+function openHotkey(key) {
+  hotkeyKey = key;
+  const info = state.keys[key] || {}, look = info.look || {};
+  const current = info.keys || "";
+  const parts = current ? current.split("+") : [];
+  hotkeyName = parts.length ? parts.pop() : "";
+  hotkeyMods = new Set(parts.filter((p) => MODIFIERS.includes(p)));
+  // Поле сочетания — у кнопки-сочетания; у остальных — по ссылке «Сделать кнопкой-сочетанием…».
+  // У пустой кнопки сочетание открыто сразу: назначать ей больше нечего, а это первый шаг.
+  comboShown = !!current || !info.bound;
+  comboRemoved = false;
+  $("hotkey-title").textContent = tf("look_title", key + 1);
+  $("look-caption").value = look.caption || "";
+  lookColor = look.color || "";
+  const icon = look.icon || "";
+  $("look-icon-text").value = icon.startsWith(TEXT_ICON) ? icon.slice(TEXT_ICON.length) : "";
+  libIcon = icon.startsWith(LIB_ICON) ? icon.slice(LIB_ICON.length) : "";
+  userImg = icon.startsWith(IMG_ICON) ? icon.slice(IMG_ICON.length) : "";
+  appPath = icon.startsWith(APP_ICON) ? icon.slice(APP_ICON.length) : "";
+  appUrl = appPath ? info.custom_icon || "" : "";
+  imgSource = null;
+  imgFit = "cover";
+  iconError = "";
+  $("look-app-path").value = appPath;
+  $("look-app-path").placeholder = t("look_app_path");
+  $("look-lib-search").value = "";
+  $("look-lib-search").placeholder = t("look_icon_lib_search");
+  showIconTab(icon.startsWith(TEXT_ICON) ? "text" : libIcon ? "lib" : userImg ? "img" : appPath ? "app" : "auto");
+  showColors();
+  showHotkey();
+  $("hotkey-dialog").hidden = false;
+  (comboShown ? $("hotkey-combo") : $("look-caption")).focus();
+}
+function closeHotkey() { $("hotkey-dialog").hidden = true; hotkeyKey = null; }
+document.querySelectorAll("#hotkey-mods button").forEach((button) => {
+  button.onclick = () => {
+    const mod = button.dataset.mod;
+    if (hotkeyMods.has(mod)) hotkeyMods.delete(mod); else hotkeyMods.add(mod);
+    comboRemoved = false;
+    showHotkey();
+    $("hotkey-combo").focus();
+  };
+});
+$("hotkey-combo").addEventListener("pointerdown", () => { $("hotkey-combo").focus(); });
+document.addEventListener("keydown", (event) => {
+  if ($("hotkey-dialog").hidden) {
+    if (event.key === "Escape") closeMenu();
+    return;
+  }
+  const bare = !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey;
+  const capturing = document.activeElement === $("hotkey-combo");
+  if (event.key === "Escape" && bare && !(capturing && hotkeyMods.size)) return closeHotkey();
+  // Клавиши ловит только рамка сочетания: в полях подписи и иконки печатается текст.
+  if (!capturing) {
+    if (event.key === "Enter" && document.activeElement?.tagName === "INPUT" && !$("hotkey-save").disabled) $("hotkey-save").click();
+    return;
+  }
+  if (event.key === "Tab" && bare) return;  // переход к следующему полю
+  event.preventDefault();
+  if (MODIFIER_CODES.includes(event.code)) return;
+  const name = keyName(event.code);
+  $("hotkey-error").textContent = "";
+  if (!name) { $("hotkey-error").textContent = t("hotkey_unsupported"); return; }
+  // Модификаторы, зажатые на клавиатуре, добавляются к отмеченным мышью.
+  [[event.ctrlKey, "Ctrl"], [event.altKey, "Alt"], [event.shiftKey, "Shift"], [event.metaKey, "Win"]]
+    .forEach(([down, mod]) => { if (down) hotkeyMods.add(mod); });
+  hotkeyName = name;
+  comboRemoved = false;
+  showHotkey();
+});
+$("look-caption").oninput = showPreview;
+$("look-icon-text").oninput = showPreview;
+$("combo-open").onclick = () => { comboShown = true; showHotkey(); $("hotkey-combo").focus(); };
+$("hotkey-remove").onclick = () => { comboRemoved = true; showHotkey(); };
+// Сброс привязки — та же кнопка рядом со «Сбросить вид»: снимает сочетание (применится по «Сохранить»).
+$("binding-reset").onclick = () => {
+  if (!$("binding-reset").disabled) { comboRemoved = true; showHotkey(); }
+};
+$("look-reset").onclick = () => {
+  $("look-caption").value = "";
+  $("look-icon-text").value = "";
+  libIcon = userImg = appPath = appUrl = iconError = "";
+  imgSource = null;
+  $("look-app-path").value = "";
+  lookColor = "";
+  showIconTab("auto");
+  showColors();
+};
+
+// Сохранить: сначала сочетание (если поменялось), потом вид — вид при этом не теряется.
+async function saveLook() {
+  const key = hotkeyKey, current = state.keys[key]?.keys || "", combo = hotkeyCombo();
+  const look = {
+    action: "appearance", key,
+    caption: $("look-caption").value.trim(),
+    icon: iconTab === "text" && iconText() ? TEXT_ICON + iconText()
+      : iconTab === "lib" && libIcon ? LIB_ICON + libIcon
+      : iconTab === "img" && userImg ? IMG_ICON + userImg
+      : iconTab === "app" && appPath ? APP_ICON + appPath : "",
+    color: lookColor,
+  };
+  try {
+    if (comboRemoved || (combo && combo !== current)) {
+      const answer = await api("/api/action", {action: "keys", key, combo: comboRemoved ? null : combo});
+      if (!answer.ok) { $("hotkey-error").textContent = answer.error || t("error"); return; }
+    }
+    const answer = await api("/api/action", look);
+    if (!answer.ok) { $("hotkey-error").textContent = answer.error || t("error"); return; }
+    closeHotkey();
+  } catch (error) {
+    $("hotkey-error").textContent = `${t("error")}: ${error.message}`;
+  } finally {
+    refresh();
+  }
+}
+$("hotkey-save").onclick = saveLook;
+$("hotkey-cancel").onclick = closeHotkey;
+$("hotkey-dialog").addEventListener("pointerdown", (event) => { if (event.target === $("hotkey-dialog")) closeHotkey(); });
+
+// --- окно «Дополнительно»: вкладки «Подключение» и «Журнал»; последняя вкладка запоминается в браузере
+let logTimer = null;
+const remember = (name, value) => { try { localStorage.setItem(name, value); } catch {} };
+const recall = (name) => { try { return localStorage.getItem(name); } catch { return null; } };
+function showTab(name) {
+  document.querySelectorAll("#advanced [data-tab]").forEach((tab) => {
+    tab.classList.toggle("on", tab.dataset.tab === name);
+    tab.setAttribute("aria-selected", tab.dataset.tab === name);
+  });
+  document.querySelectorAll("#advanced [data-pane]").forEach((pane) => { pane.hidden = pane.dataset.pane !== name; });
+  clearInterval(logTimer);
+  if (name === "log") {
+    $("log-text").scrollTop = $("log-text").scrollHeight;
+    refreshLog();
+    logTimer = setInterval(refreshLog, 2000);
+  }
+  remember("agent_control_tab", name);
+}
+document.querySelectorAll("#advanced [data-tab]").forEach((tab) => { tab.onclick = () => showTab(tab.dataset.tab); });
+$("open-advanced").onclick = () => {
+  $("advanced").showModal();
+  $("advanced").focus();
+  const tab = recall("agent_control_tab");
+  showTab(["panel", "connection", "log"].includes(tab) ? tab : "panel");
+};
+$("close-advanced").onclick = () => $("advanced").close();
+$("advanced").addEventListener("close", () => clearInterval(logTimer));
+// Щелчок по затемнению вокруг окна закрывает его.
+$("advanced").addEventListener("pointerdown", (event) => { if (event.target === $("advanced")) $("advanced").close(); });
+async function refreshLog() {
+  try {
+    const lines = await api("/api/log");
+    const pre = $("log-text"), atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;
+    pre.textContent = lines.join("\n");
+    if (atBottom) pre.scrollTop = pre.scrollHeight;
+  } catch {}
+}
+// «Как работают кнопки»: раскрыт или нет — запоминается в этом браузере (по умолчанию свёрнут)
+$("gestures-help").open = recall("agent_control_help") === "1";
+$("gestures-help").addEventListener("toggle", () => remember("agent_control_help", $("gestures-help").open ? "1" : ""));
+$("copy-log").onclick = () => copy($("log-text").textContent, $("copy-log"));
+
+refresh();
+setInterval(refresh, 1500);
+</script>
+</body>
+</html>

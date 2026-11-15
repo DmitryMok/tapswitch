@@ -1,0 +1,7 @@
+name: {ru: Смена текста на кнопке, en: Button text demo}
+label: {ru: "{caption|text|Нажми}", en: "{caption|text|Press}"}
+gestures:
+  click: [{action: set_value, name: text, value: Клик}]
+  double_click: [{action: set_value, name: text, value: Двойной клик}]
+  hold_start: [{action: set_value, name: text, value: Держу}]
+  hold_end: [{action: set_value, name: text, value: Отпущено}]

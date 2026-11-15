@@ -1,0 +1,25 @@
+# The repository publishes only the Rust version and the resources it embeds.
+# Everything else in this folder (project notes, Python prototype, local data) stays local.
+/*
+!/.gitignore
+!/README.md
+!/README.ru.md
+!/LICENSE
+!/docs/
+
+!/app-rs/
+/app-rs/target/
+/app-rs/targetcheck/
+/app-rs/*.exe
+
+!/app/
+/app/*
+!/app/icons/
+!/app/scenarios/
+!/app/browser_extension/
+!/app/agent_control/
+/app/agent_control/*
+!/app/agent_control/web/
+!/app/agent_control/*.ps1
+
+__pycache__/

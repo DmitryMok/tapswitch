@@ -1,0 +1,18 @@
+name: {ru: Сессия herdr, en: herdr session}
+label: {ru: "{_recording|}{caption|session.name|Нет сессии}", en: "{_recording|}{caption|session.name|No session}"}
+# Иконка роли сессии (app/icons/<роль>.svg); core — роль в папке не указана.
+# У окна приложения роли нет — вместо неё иконка самой программы.
+icon: "{session.role|}{session.icon|}"
+# Роль над иконкой — если включено «Добавить роль на иконку»; цвет — состояние агента.
+icon_title: "{session.role|}"
+gestures:
+  click: [{action: open_session}]
+  double_click: [{action: bind_current_session}]
+  # Запись речи пока заглушка: агенту ничего не отправляется.
+  hold_start:
+    - {action: set_value, name: _recording, value: "● "}
+    - {action: log, message: "Запись началась (заглушка)"}
+  hold_cancel: [{action: clear_value, name: _recording}]  # кнопку стали перетаскивать
+  hold_end:
+    - {action: clear_value, name: _recording}
+    - {action: log, message: "Запись закончилась (заглушка), агенту ничего не отправлено"}

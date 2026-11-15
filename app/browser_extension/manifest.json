@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Tapswitch — вкладки",
+  "version": "1.2",
+  "description": "Передаёт приложению Tapswitch список вкладок и переключает вкладку по нажатию кнопки панели.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwmAKwThr3IlByO4kT3d6Y3MlmPu64ffhe7Y3VokXngEbnMSQtLhMp2oSoV3m51eCw92OAtJM9DogZM6kFo0I9nuyUtGTUSvvLbWBPhHL8Xdtq1/gmhTT0LyjSJ1pcDxES/6TFi73NygQZizy6v8HQnIcxpgbiGW/pyCYLo2GE4co9yiXDxmY0o0yzSByYh2YR/X/BRvDLOl9po2G/kYUw0Clud+eTWzLZUD0CN+l9vsISo/0Bo3sLu4uwbvTUghMRV04a1MD5+EZ0vhaSf7YjiuZmKmzekira/YnsrkovWADT8UMLkJH4osrrWDvvBNpUeNzOeJV55zI/Nnf0RcHvwIDAQAB",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Tapswitch — вкладки",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "permissions": ["tabs", "storage", "alarms"],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

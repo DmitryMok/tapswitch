@@ -1,0 +1,10 @@
+name: {ru: Диктовка, en: Dictation}
+# Отдельная кнопка для голоса: держите — идёт запись с системного микрофона, отпустите — распознавание.
+# Распознанный текст пока только пишется в журнал; отправка агенту — следующим шагом.
+label: {ru: "{_recording|}{caption|Диктовка}", en: "{_recording|}{caption|Dictation}"}
+icon: mic
+gestures:
+  hold_start: [{action: start_recording}]
+  hold_end: [{action: stop_recording}]
+  hold_cancel: [{action: cancel_recording}]  # кнопку стали перетаскивать
+  click: [{action: log, message: "Кнопка {key}: для диктовки нажмите и держите"}]

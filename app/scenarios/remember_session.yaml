@@ -1,0 +1,10 @@
+name: {ru: Запоминание сессии, en: Remember session}
+label: {ru: "{caption|session.name|Запомнить}", en: "{caption|session.name|Remember}"}
+# Иконка роли сессии (app/icons/<роль>.svg); core — роль в папке не указана.
+# У окна приложения роли нет — вместо неё иконка самой программы.
+icon: "{session.role|}{session.icon|}"
+# Роль над иконкой — если включено «Добавить роль на иконку»; цвет — состояние агента.
+icon_title: "{session.role|}"
+gestures:
+  click: [{action: bind_current_session}]
+  double_click: [{action: open_session}]

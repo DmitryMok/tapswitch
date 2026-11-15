@@ -1,0 +1,7 @@
+name: {ru: Журнал жестов, en: Gesture log}
+label: {ru: "{caption|Журнал}", en: "{caption|Log}"}
+gestures:
+  click: [{action: log, message: "Кнопка {key}: клик"}]
+  double_click: [{action: log, message: "Кнопка {key}: двойной клик"}]
+  hold_start: [{action: log, message: "Кнопка {key}: удержание началось"}]
+  hold_end: [{action: log, message: "Кнопка {key}: удержание закончилось"}]
