@@ -19,7 +19,7 @@
 
 1. Download [tapswitch.exe](https://github.com/DmitryMok/tapswitch/releases/latest/download/tapswitch.exe) and run it.
 2. The control page opens in your browser. Scan the QR code with your phone, and the button panel opens on the phone.
-3. **Assign a window to a button.** On the computer, switch to the program you want to come back to quickly (an editor, a terminal with an agent, Obsidian…). While its window is active, tap an empty button on the phone and confirm. The button remembers that window.
+3. **Assign a window to a button.** On the computer, switch to the program you want to come back to quickly (an editor, a terminal with an agent, Obsidian…). While its window is active, tap an empty button on the phone. The button remembers that window.
 4. **Switch.** Now, from any other window, tap that button and the computer switches to the remembered window. Fill the other buttons the same way.
 5. *Optional:* to put browser tabs on buttons, [install the extension](#browser-extension-for-tabs). It takes a minute.
 
@@ -69,6 +69,22 @@ Works with any Chromium 116+ browser (Chrome, Edge, Opera, Brave, Vivaldi, Comet
 | Drag | Move the button |
 | Swipe left / right | Switch button profiles (6 sets of buttons) |
 | Swipe down | Reload the panel |
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/images/demo/remember_en.gif" alt="Tapping an empty button remembers the window" width="100%"><br><b>Tap.</b> An empty button remembers the window; tap again to jump back to it</td>
+    <td width="50%" align="center"><img src="docs/images/demo/hold_en.gif" alt="Holding replaces the window on a button" width="100%"><br><b>Hold.</b> The button remembers the current window instead of the old one</td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/images/demo/drag_en.gif" alt="Dragging a button to another place" width="100%"><br><b>Drag.</b> Hold a button and move it — the two buttons swap places</td>
+    <td width="50%" align="center"><img src="docs/images/demo/swipe_en.gif" alt="Swiping switches button profiles" width="100%"><br><b>Swipe left / right.</b> Another set of buttons</td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/images/demo/status_en.gif" alt="Agent status: working, then done" width="80%"><br>
+  <b>Agent status:</b> a light runs around the button while the agent works; a check mark when it is done
+</p>
 
 On the control page you can change a button's caption, color and icon (built-in library, emoji, or your own image).
 
