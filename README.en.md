@@ -55,41 +55,48 @@ Works with any Chromium 116+ browser (Chrome, Edge, Opera, Brave, Vivaldi, Comet
 | DeepSeek Harness session | Open the session in the app, then tap |
 | Key combination (e.g. <kbd>Win</kbd>+<kbd>H</kbd> for voice typing) | Right-click the button on the control page |
 
-<p align="center">
-  <img src="docs/images/panel_en.png" alt="Phone panel: agent sessions with live status, app windows" width="80%">
-</p>
-
 ## Gestures
 
-| Gesture | Action |
-|---|---|
-| Tap | Open the button's window or session. On an empty button, remember the current one |
-| Hold | Replace the button's window or session with the current one |
-| Double tap | Clear the button |
-| Drag | Move the button |
-| Swipe left / right | Switch button profiles (6 sets of buttons) |
-| Swipe down | Reload the panel |
+### Tap
 
-<table>
-  <tr>
-    <td width="50%" align="center"><img src="docs/images/demo/remember_en.gif" alt="Tapping an empty button remembers the window" width="100%"><br><b>Tap.</b> An empty button remembers the window; tap again to jump back to it</td>
-    <td width="50%" align="center"><img src="docs/images/demo/hold_en.gif" alt="Holding replaces the window on a button" width="100%"><br><b>Hold.</b> The button remembers the current window instead of the old one</td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="docs/images/demo/drag_en.gif" alt="Dragging a button to another place" width="100%"><br><b>Drag.</b> Hold a button and move it — the two buttons swap places</td>
-    <td width="50%" align="center"><img src="docs/images/demo/swipe_en.gif" alt="Swiping switches button profiles" width="100%"><br><b>Swipe left / right.</b> Another set of buttons</td>
-  </tr>
-</table>
+Opens the button's window or session. An empty button remembers the window you are working in right now.
 
 <p align="center">
-  <img src="docs/images/demo/status_en.gif" alt="Agent status: working, then done" width="80%"><br>
-  <b>Agent status:</b> a light runs around the button while the agent works; a check mark when it is done
+  <img src="docs/images/demo/remember_en.gif" alt="Tapping an empty button remembers the window, tapping again jumps back to it" width="75%">
 </p>
+
+### Hold
+
+Replaces the button's window or session with the current one.
+
+<p align="center">
+  <img src="docs/images/demo/hold_en.gif" alt="Holding replaces the window on a button" width="75%">
+</p>
+
+### Drag
+
+Hold a button and move it to another place: the two buttons swap.
+
+<p align="center">
+  <img src="docs/images/demo/drag_en.gif" alt="Dragging a button to another place" width="75%">
+</p>
+
+### Swipe left / right
+
+Switches the profile — another set of buttons (6 in total).
+
+<p align="center">
+  <img src="docs/images/demo/swipe_en.gif" alt="Swiping switches button profiles" width="75%">
+</p>
+
+### More
+
+- **Double tap** clears the button.
+- **Swipe down** reloads the panel.
 
 On the control page you can change a button's caption, color and icon (built-in library, emoji, or your own image).
 
-<details>
-<summary><b>Agent status on buttons</b></summary>
+## Agent status on buttons
 
 For [herdr](https://github.com/ogulcancelik/herdr) sessions, both in Windows and in WSL:
 
@@ -98,8 +105,11 @@ For [herdr](https://github.com/ogulcancelik/herdr) sessions, both in Windows and
 - **waiting for you:** an orange pulsing frame;
 - **ready:** the caption shows `✓ claude`, `✓ codex`, ….
 
+<p align="center">
+  <img src="docs/images/demo/status_en.gif" alt="Agent status: working, then done" width="75%">
+</p>
+
 The button of the session you are in now is framed. If a session or program was closed, the button shows that too. After a reboot, Tapswitch finds the sessions again on its own.
-</details>
 
 <details>
 <summary><b>Agent roles above the icon</b></summary>
