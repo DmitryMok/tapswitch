@@ -22,6 +22,8 @@ pub struct Config {
     pub servers: Vec<Server>,
     /// Папка данных DeepSeek Harness; None — сессии dsh не привязываются.
     pub dsh_data: Option<String>,
+    /// Папка данных OpenCode Desktop; None — вкладки OpenCode запоминаются как окно целиком.
+    pub opencode_data: Option<String>,
     /// Вкладки браузера через расширение; None — не привязываются.
     pub browser: Option<Browser>,
 }
@@ -39,6 +41,7 @@ fn browser_port() -> u16 {
     3001
 }
 
+/// Раздел с папкой данных приложения (dsh, opencode).
 #[derive(Deserialize, Clone)]
 struct Dsh {
     data: Option<String>,
@@ -66,6 +69,7 @@ struct Raw {
     web: Web,
     herdr: Herdr,
     dsh: Option<Dsh>,
+    opencode: Option<Dsh>,
     browser: Option<Browser>,
 }
 
@@ -165,6 +169,7 @@ pub fn load(user: &Path) -> Result<Config, String> {
         default_scenario: raw.default_scenario.filter(|s| !s.is_empty()),
         servers: raw.herdr.servers,
         dsh_data: raw.dsh.and_then(|d| d.data).filter(|d| !d.trim().is_empty()),
+        opencode_data: raw.opencode.and_then(|d| d.data).filter(|d| !d.trim().is_empty()),
         browser: raw.browser,
     })
 }
@@ -296,16 +301,17 @@ mod tests {
         assert_eq!(config.servers.len(), 2);
         assert_eq!(config.default_scenario.as_deref(), Some("auto"));
         assert_eq!(config.dsh_data.as_deref(), Some(r"%USERPROFILE%\.dsh"));
+        assert_eq!(config.opencode_data.as_deref(), Some(r"%APPDATA%\ai.opencode.desktop"));
         assert_eq!(config.browser.as_ref().map(|b| b.port), Some(3001));
     }
 
     #[test]
     fn sections_can_be_switched_off() {
         let path = std::env::temp_dir().join(format!("agent_control_config_off_{}.yaml", std::process::id()));
-        std::fs::write(&path, "dsh: null\nbrowser: null\n").unwrap();
+        std::fs::write(&path, "dsh: null\nopencode: null\nbrowser: null\n").unwrap();
         let config = load(&path).unwrap();
         std::fs::remove_file(&path).unwrap();
-        assert!(config.dsh_data.is_none() && config.browser.is_none());
+        assert!(config.dsh_data.is_none() && config.opencode_data.is_none() && config.browser.is_none());
     }
 
     #[test]

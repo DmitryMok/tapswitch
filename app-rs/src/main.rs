@@ -15,6 +15,7 @@ mod autostart;
 mod browser;
 mod config;
 mod dsh;
+mod opencode;
 mod engine;
 mod gestures;
 mod i18n;
@@ -102,6 +103,12 @@ fn make_sessions(config: &config::Config) -> (Arc<dyn sessions::Sessions>, Optio
         let store = dsh::DshStore::new(dsh::expand_env(data).into());
         backends.push((dsh::KIND, Box::new(dsh::DshSessions::new(Box::new(dsh::WindowsDshUi::new()), store))));
         others.push(Box::new(dsh::is_dsh_window));
+    }
+    if let Some(data) = &config.opencode_data {
+        let store = opencode::OpencodeStore::new(dsh::expand_env(data).into());
+        let ui = opencode::WindowsOpencodeUi::new();
+        backends.push((opencode::KIND, Box::new(opencode::OpencodeSessions::new(Box::new(ui), store))));
+        others.push(Box::new(opencode::is_opencode_window));
     }
     if let Some(settings) = &config.browser {
         let registry = Arc::new(browser::TabRegistry::default());

@@ -53,6 +53,7 @@ Works with any Chromium 116+ browser (Chrome, Edge, Opera, Brave, Vivaldi, Comet
 | Browser tab (Chrome, Edge, Opera, Brave, …) | **Needs the [extension](#browser-extension-for-tabs)** (1 minute); then open the tab and tap an empty button |
 | herdr session with an AI agent | Focus the session's terminal tab, then tap |
 | DeepSeek Harness session | Open the session in the app, then tap |
+| OpenCode Desktop session tab | Open the tab in the app, then tap |
 | Key combination (e.g. <kbd>Win</kbd>+<kbd>H</kbd> for voice typing) | Right-click the button on the control page |
 
 ## Gestures

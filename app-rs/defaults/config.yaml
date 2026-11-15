@@ -17,6 +17,9 @@ web:
 dsh:
   # Десктопное приложение DeepSeek Harness: папка его данных (id и названия сессий).
   data: '%USERPROFILE%\.dsh'
+opencode:
+  # Десктопное приложение OpenCode: папка его данных (открытые вкладки сессий).
+  data: '%APPDATA%\ai.opencode.desktop'
 browser:
   # Вкладки Chromium-браузеров через расширение (только 127.0.0.1).
   port: 3001
