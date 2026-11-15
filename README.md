@@ -1,127 +1,127 @@
 <p align="center">
-  <img src="docs/images/hero_en.png" alt="Tapswitch — your phone as a Stream Dock for Windows" width="100%">
+  <img src="docs/images/hero_ru.png" alt="Tapswitch — Stream Dock из телефона для Windows" width="100%">
 </p>
 
 <p align="center">
-  <b>English</b> · <a href="README.ru.md">Русский</a>
+  <b>Русский</b> · <a href="README.en.md">English</a>
 </p>
 
 # Tapswitch
 
-**Your phone as a Stream Dock for Windows.** Put the phone on a stand next to the monitor. One tap takes you to the right window, browser tab or AI agent session. The buttons also show what each agent is doing.
+**Stream Dock из телефона для Windows.** Поставьте телефон на подставку у монитора. Одно касание переносит вас в нужное окно, вкладку браузера или сессию ИИ-агента. Заодно кнопки показывают, чем занят каждый агент.
 
-- **Nothing to install on the phone.** The panel opens in the phone's browser from a QR code. Works on Android and iPhone.
-- **One tap to remember.** Tap an empty button and it remembers the window you were just in. Tap it again later to jump back.
-- **Live agent status.** For [herdr](https://github.com/ogulcancelik/herdr) sessions the button shows whether the agent (Claude Code, Codex, …) is working, finished, or waiting for you.
-- **Tiny and portable.** One 1.5 MB `.exe` with no installer and no dependencies. It runs from the system tray.
+- **На телефон ничего не ставится.** Панель открывается в браузере телефона по QR-коду. Подходят Android и iPhone.
+- **Запомнить окно одним касанием.** Нажмите пустую кнопку, и она запомнит окно, в котором вы только что работали. Потом нажмите её снова, чтобы вернуться в это окно.
+- **Статус агентов на кнопках.** Для сессий [herdr](https://github.com/ogulcancelik/herdr) кнопка показывает, что агент (Claude Code, Codex, …) работает, закончил или ждёт вашего ответа.
+- **Маленькая и переносимая.** Один `.exe` на 1,5 МБ, без установщика и зависимостей. Работает из трея.
 
-## Quick start
+## Быстрый старт
 
-1. Download `tapswitch.exe` from [Releases](../../releases/latest) and run it.
-2. The control page opens in your browser. Scan the QR code with your phone.
-3. Switch to any window, then tap an empty button on the phone. Done.
+1. Скачайте `tapswitch.exe` из [Releases](../../releases/latest) и запустите.
+2. В браузере откроется страница управления. Наведите камеру телефона на QR-код.
+3. Перейдите в любое окно и нажмите пустую кнопку на телефоне. Готово.
 
-The phone and the computer must be on the same Wi-Fi network.
+Телефон и компьютер должны быть в одной Wi-Fi сети.
 
 <p align="center">
-  <img src="docs/images/setup_en.png" alt="Control page with the QR code" width="80%">
+  <img src="docs/images/setup_ru.png" alt="Страница управления с QR-кодом" width="80%">
 </p>
 
-> **Windows warning on first run.** The exe is not code-signed, so SmartScreen shows "Windows protected your PC". Click **More info → Run anyway**. Windows Firewall will then ask for network access. Allow it for **private networks**, otherwise the phone can't connect.
+> **Предупреждение Windows при первом запуске.** У exe нет цифровой подписи, поэтому SmartScreen покажет «Windows защитила ваш компьютер». Нажмите **Подробнее → Выполнить в любом случае**. Затем брандмауэр попросит доступ к сети. Разрешите его для **частных сетей**, иначе телефон не подключится.
 >
-> You can also build the exe yourself from this source (see [Building](#building)).
+> Exe можно собрать и самому из этих исходников (см. [Сборка](#сборка)).
 
-## What can a button open?
+## Что можно открыть кнопкой
 
-| Button | How to set it |
+| Кнопка | Как назначить |
 |---|---|
-| Any program window | Switch to the window, then tap an empty button |
-| Browser tab (Chrome, Edge, Opera, Brave, …) | Install the browser extension (see below) |
-| herdr session with an AI agent | Focus the session's terminal tab, then tap |
-| DeepSeek Harness session | Open the session in the app, then tap |
-| Key combination (e.g. <kbd>Win</kbd>+<kbd>H</kbd> for voice typing) | Right-click the button on the control page |
+| Окно любой программы | Перейти в окно и нажать пустую кнопку |
+| Вкладка браузера (Chrome, Edge, Opera, Brave, …) | Установить расширение (см. ниже) |
+| Сессия herdr с ИИ-агентом | Перейти во вкладку терминала с сессией и нажать |
+| Сессия DeepSeek Harness | Открыть сессию в приложении и нажать |
+| Сочетание клавиш (например, <kbd>Win</kbd>+<kbd>H</kbd> — голосовой ввод) | Правый клик по кнопке на странице управления |
 
 <p align="center">
-  <img src="docs/images/panel_en.png" alt="Phone panel: agent sessions with live status, app windows" width="80%">
+  <img src="docs/images/panel_ru.png" alt="Панель на телефоне: сессии агентов со статусом, окна программ" width="80%">
 </p>
 
-## Gestures
+## Жесты
 
-| Gesture | Action |
+| Жест | Действие |
 |---|---|
-| Tap | Open the button's window or session. On an empty button, remember the current one |
-| Hold | Replace the button's window or session with the current one |
-| Double tap | Clear the button |
-| Drag | Move the button |
-| Swipe left / right | Switch button profiles (6 sets of buttons) |
-| Swipe down | Reload the panel |
+| Касание | Открыть окно или сессию кнопки. На пустой кнопке — запомнить текущее окно или сессию |
+| Удержание | Заменить окно или сессию кнопки на текущие |
+| Двойное касание | Очистить кнопку |
+| Перетаскивание | Переставить кнопку |
+| Свайп влево / вправо | Сменить профиль кнопок (6 наборов) |
+| Свайп вниз | Перезагрузить панель |
 
-On the control page you can change a button's caption, color and icon (built-in library, emoji, or your own image).
+На странице управления у кнопки можно поменять подпись, цвет и иконку: из встроенной библиотеки, эмодзи или свою картинку.
 
 <details>
-<summary><b>Agent status on buttons</b></summary>
+<summary><b>Статус агента на кнопке</b></summary>
 
-For [herdr](https://github.com/ogulcancelik/herdr) sessions, both in Windows and in WSL:
+Для сессий [herdr](https://github.com/ogulcancelik/herdr), в Windows и в WSL:
 
-- **working:** a light runs around the button;
-- **done:** a check mark that slowly fades;
-- **waiting for you:** an orange pulsing frame;
-- **ready:** the caption shows `✓ claude`, `✓ codex`, ….
+- **работает:** по краю кнопки бежит огонёк;
+- **закончил:** галочка, которая постепенно бледнеет;
+- **ждёт вашего ответа:** мигающая оранжевая рамка;
+- **готов:** в подписи `✓ claude`, `✓ codex`, ….
 
-The button of the session you are in now is framed. If a session or program was closed, the button shows that too. After a reboot, Tapswitch finds the sessions again on its own.
+Кнопка сессии, в которой вы сейчас находитесь, обведена рамкой. Если сессию или программу закрыли, это тоже видно на кнопке. После перезагрузки компьютера Tapswitch сам находит сессии заново.
 </details>
 
 <details>
-<summary><b>Browser tabs: install the extension</b></summary>
+<summary><b>Вкладки браузера: установка расширения</b></summary>
 
-The extension is installed manually. It is not published in browser stores.
+Расширение ставится вручную, в магазинах браузеров его нет.
 
-1. Download `tapswitch-browser-extension.zip` from [Releases](../../releases/latest). Unpack it to a permanent folder, e.g. `%LOCALAPPDATA%\Tapswitch\browser_extension`.
-2. Open `chrome://extensions` (`edge://extensions`, `opera://extensions`, …) and turn on **Developer mode**.
-3. Click **Load unpacked** and select the `browser_extension` folder.
+1. Скачайте `tapswitch-browser-extension.zip` из [Releases](../../releases/latest). Распакуйте его в постоянную папку, например `%LOCALAPPDATA%\Tapswitch\browser_extension`.
+2. Откройте `chrome://extensions` (`edge://extensions`, `opera://extensions`, …) и включите **Режим разработчика**.
+3. Нажмите **Загрузить распакованное** и выберите папку `browser_extension`.
 
-The extension connects only to `127.0.0.1` and sends the list of open tabs to Tapswitch. It works with any Chromium 116+ browser. Details are in [app/browser_extension/README.md](app/browser_extension/README.md) (in Russian).
+Расширение подключается только к `127.0.0.1` и передаёт Tapswitch список открытых вкладок. Подходит любой браузер на Chromium 116+. Подробнее — в [app/browser_extension/README.md](app/browser_extension/README.md).
 </details>
 
 <details>
-<summary><b>Agent roles above the icon</b></summary>
+<summary><b>Роли агентов над иконкой</b></summary>
 
-If a session's folder is a role folder such as `my-project/06 Roles/dev` (a numbered `NN Roles` folder), Tapswitch shows the project as the caption and the role above the icon, with an icon for the role. This follows the agent workflow from [tutor.diworld.pro](https://tutor.diworld.pro).
+Если папка сессии — папка роли, например `my-project/06 Roles/dev` (папка `NN Roles` с номером), Tapswitch пишет в подписи проект, а над иконкой — роль и подбирает для роли иконку. Так устроен процесс работы с агентами из [tutor.diworld.pro](https://tutor.diworld.pro).
 </details>
 
 <details>
-<summary><b>Phone doesn't open the panel?</b></summary>
+<summary><b>Панель не открывается на телефоне?</b></summary>
 
-- The phone and the computer must be on the same Wi-Fi network.
-- Allow Tapswitch in the Windows Firewall prompt (private networks).
-- A VPN on the phone or the computer may block the home network.
-- If the computer has several network adapters (VPN, WSL, Hyper-V), set the right address under **Advanced** on the control page.
+- Телефон и компьютер должны быть в одной Wi-Fi сети.
+- Разрешите Tapswitch доступ в окне брандмауэра Windows (частные сети).
+- VPN на телефоне или компьютере может закрывать доступ к домашней сети.
+- Если у компьютера несколько сетевых адаптеров (VPN, WSL, Hyper-V), укажите нужный адрес в разделе **Дополнительно** на странице управления.
 </details>
 
 <details>
-<summary><b>Settings and data</b></summary>
+<summary><b>Настройки и данные</b></summary>
 
-- Data and settings are stored in `%APPDATA%\Tapswitch\`: `state.json`, `config.yaml` (only what differs from the [defaults](app-rs/defaults/config.yaml)), custom scenarios, and the log.
-- Port, phone address, profiles and autostart can be changed under **Advanced** on the control page.
-- Interface languages: English and Russian.
+- Данные и настройки хранятся в `%APPDATA%\Tapswitch\`: `state.json`, `config.yaml` (только отличия от [настроек по умолчанию](app-rs/defaults/config.yaml)), свои сценарии и журнал.
+- Порт, адрес для телефона, профили и автозапуск меняются в разделе **Дополнительно** на странице управления.
+- Языки интерфейса: русский и английский.
 </details>
 
-## Building
+## Сборка
 
-Requirements: Windows, Rust (GNU toolchain `x86_64-pc-windows-gnu`, no Visual Studio needed), and [MSYS2](https://www.msys2.org/) with the `mingw-w64-x86_64-binutils` package (for `as.exe` and `dlltool.exe`).
+Нужны Windows, Rust (тулчейн GNU `x86_64-pc-windows-gnu`, Visual Studio не нужна) и [MSYS2](https://www.msys2.org/) с пакетом `mingw-w64-x86_64-binutils` (из него берутся `as.exe` и `dlltool.exe`).
 
 ```bat
-app-rs\build.cmd          :: release build → app-rs\target\release\tapswitch.exe
-app-rs\build.cmd test     :: tests
+app-rs\build.cmd          :: сборка → app-rs\target\release\tapswitch.exe
+app-rs\build.cmd test     :: тесты
 ```
 
-If MSYS2 is not in `C:\msys64`, set `MINGW=<folder with as.exe>`.
+Если MSYS2 установлен не в `C:\msys64`, задайте `MINGW=<папка с as.exe>`.
 
-The repository layout:
+Что где лежит:
 
-- `app-rs/`: the Rust source code;
-- `app/`: resources that are embedded into the exe at build time: the phone panel page, PowerShell helpers, role icons, button scenarios, and the browser extension.
+- `app-rs/` — исходный код на Rust;
+- `app/` — ресурсы, которые при сборке встраиваются в exe: страница панели телефона, вспомогательные скрипты PowerShell, иконки ролей, сценарии кнопок, а также расширение браузера.
 
-## License
+## Лицензия
 
-[MIT](LICENSE). Icons from [Lucide](https://lucide.dev) are used under the [ISC license](app-rs/assets/LUCIDE-LICENSE.txt).
+[MIT](LICENSE). Иконки [Lucide](https://lucide.dev) — по [лицензии ISC](app-rs/assets/LUCIDE-LICENSE.txt).
