@@ -149,10 +149,18 @@ fn shown_icon(icon: String, values: &Map<String, Value>) -> String {
     match (look.custom_icon(), look.icon_text()) {
         (Some(name), _) => name.to_string(),
         (None, Some(_)) => String::new(),
+        // Окно показывает свою иконку, не как у exe (счётчик, состояние) — её и показать.
+        _ if live_icon_of(values).is_some() => format!("{}{}", crate::live_icon::PREFIX, live_icon_of(values).unwrap()),
         // Окно, у которого не узнали программу (например, нет доступа к процессу), — общая иконка окна.
         _ if icon.is_empty() && is_window(values) => crate::windows::WINDOW_ICON.to_string(),
         _ => icon,
     }
+}
+
+/// Ключ живой иконки окна, если картинка для него есть (после перезапуска её ещё нет).
+fn live_icon_of(values: &Map<String, Value>) -> Option<&str> {
+    let key = values.get("session")?.get(crate::live_icon::FIELD)?.as_str()?;
+    (is_window(values) && !key.is_empty() && crate::live_icon::exists(key)).then_some(key)
 }
 
 fn is_window(values: &Map<String, Value>) -> bool {
@@ -432,6 +440,12 @@ impl Engine {
                 let scenario = self.scenario_of(key);
                 let auto_label = scenario.map(|s| render(&s.label, &plain)).unwrap_or_default();
                 let auto_icon = scenario.map(|s| render(&s.icon, values).trim().to_string()).unwrap_or_default();
+                // Без своего вида — то, что кнопка покажет сама (у окна — его живая иконка).
+                let mut unstyled = values.clone();
+                for name in [look::CAPTION, look::ICON, look::COLOR] {
+                    unstyled.remove(name);
+                }
+                let auto_icon = shown_icon(auto_icon, &unstyled);
                 json!({
                     "look": Look::of(values).to_json(),
                     "auto_label": auto_label.trim(),

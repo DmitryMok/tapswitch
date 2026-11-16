@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde_json::{Value, json};
 
+use crate::live_icon;
 use crate::sessions::{Backend, Probe, Result, Session, SessionError};
 use crate::win;
 
@@ -62,6 +63,8 @@ pub trait Desktop: Send + Sync {
     /// Развернуть, если свёрнуто, и вывести вперёд; false — Windows не дал.
     fn show(&self, window: i64) -> bool;
     fn is_app(&self, window: i64) -> bool;
+    /// Ключ живой иконки окна (`live_icon.rs`) или пусто, если она такая же, как у exe.
+    fn live_icon(&self, window: i64, exe: &str) -> String;
 }
 
 /// (документ, приложение) из заголовка «Отчёт.docx - Word»; без разделителя — весь заголовок и пусто.
@@ -235,9 +238,16 @@ impl Backend for WindowSessions {
                 .map(|session| match self.find(session) {
                     None => Probe { available: Some(false), info: None },
                     Some(info) => {
-                        let moved = session.get("id").and_then(Value::as_i64) != Some(info.hwnd);
-                        let info = moved.then(|| json!({"id": info.hwnd}).as_object().unwrap().clone());
-                        Probe { available: Some(true), info }
+                        let mut changed = Session::new();
+                        if session.get("id").and_then(Value::as_i64) != Some(info.hwnd) {
+                            changed.insert("id".into(), json!(info.hwnd));
+                        }
+                        // Иконка, которую окно показывает сейчас, — если она не как у exe.
+                        let live = self.desktop.live_icon(info.hwnd, &info.exe);
+                        if session.get(live_icon::FIELD).and_then(Value::as_str).unwrap_or("") != live {
+                            changed.insert(live_icon::FIELD.into(), json!(live));
+                        }
+                        Probe { available: Some(true), info: (!changed.is_empty()).then_some(changed) }
                     }
                 })
                 .collect(),
@@ -303,6 +313,10 @@ impl Desktop for WindowsDesktop {
     fn show(&self, window: i64) -> bool {
         win::bring_to_foreground(window)
     }
+
+    fn live_icon(&self, window: i64, exe: &str) -> String {
+        live_icon::of_window(window, exe)
+    }
 }
 
 #[cfg(test)]
@@ -320,6 +334,7 @@ mod tests {
         windows: BTreeMap<i64, WindowInfo>,
         last: Option<i64>,
         shown: Vec<i64>,
+        live_icons: BTreeMap<i64, String>,
     }
 
     #[derive(Clone, Default)]
@@ -356,6 +371,9 @@ mod tests {
         }
         fn is_app(&self, _window: i64) -> bool {
             true
+        }
+        fn live_icon(&self, window: i64, _exe: &str) -> String {
+            self.0.lock().unwrap().live_icons.get(&window).cloned().unwrap_or_default()
         }
     }
 
@@ -487,6 +505,24 @@ mod tests {
         let session = sessions.current().unwrap();
         desktop.set(&[word(20, "Другой.docx - Word")]);
         assert_eq!(sessions.probe(&[session]).unwrap()[0].available, Some(false));
+    }
+
+    #[test]
+    fn probe_reports_live_icon_only_when_it_changes() {
+        let desktop = FakeDesktop::new(&[word(10, "Отчёт.docx - Word")]);
+        let sessions = WindowSessions::new(Box::new(desktop.clone()));
+        let mut session = sessions.current().unwrap();
+        // Иконка как у exe — менять нечего.
+        assert_eq!(sessions.probe(&[session.clone()]).unwrap()[0].info, None);
+        // Окно показало свою иконку — кнопке новый ключ.
+        desktop.0.lock().unwrap().live_icons.insert(10, "k1".into());
+        let info = sessions.probe(&[session.clone()]).unwrap()[0].info.clone().unwrap();
+        assert_eq!(info[live_icon::FIELD], "k1");
+        session.extend(info);
+        assert_eq!(sessions.probe(&[session.clone()]).unwrap()[0].info, None);
+        // Вернулась обычная иконка — ключ сбрасывается.
+        desktop.0.lock().unwrap().live_icons.remove(&10);
+        assert_eq!(sessions.probe(&[session]).unwrap()[0].info.as_ref().unwrap()[live_icon::FIELD], "");
     }
 
     #[test]

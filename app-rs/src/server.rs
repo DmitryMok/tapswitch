@@ -195,6 +195,13 @@ fn handle(mut stream: TcpStream, context: &Context) {
                 None => reply(&mut stream, 404, "text/plain", b"not found", false, ""),
             }
         }
+        // Живые иконки окон с кнопок: ключ меняется вместе с картинкой, поэтому кэшируются.
+        _ if path.starts_with("/winicon/") && path.ends_with(".png") => {
+            match crate::live_icon::png(&path["/winicon/".len()..path.len() - ".png".len()]) {
+                Some(body) => reply(&mut stream, 200, "image/png", &body, true, ""),
+                None => reply(&mut stream, 404, "text/plain", b"not found", false, ""),
+            }
+        }
         // Значки библиотеки для кнопок — и телефону, и странице управления.
         _ if path.starts_with("/lib/") && path.ends_with(".svg") => {
             match crate::library::svg(&path["/lib/".len()..path.len() - ".svg".len()]) {

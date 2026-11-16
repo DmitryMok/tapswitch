@@ -21,6 +21,7 @@ mod gestures;
 mod i18n;
 mod keystrokes;
 mod library;
+mod live_icon;
 mod log;
 mod look;
 mod panel;

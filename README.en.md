@@ -97,6 +97,8 @@ Switches the profile — another set of buttons (6 in total).
 
 On the control page you can change a button's caption, color and icon (built-in library, emoji, or your own image).
 
+A button bound to an app window shows the icon the window currently has on the taskbar when it differs from the exe icon — for example, Chrome's profile badge or a counter or status the app draws on its icon. The button icon updates along with the window.
+
 ## Agent status on buttons
 
 For [herdr](https://github.com/ogulcancelik/herdr) sessions, both in Windows and in WSL:

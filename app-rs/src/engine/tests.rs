@@ -855,3 +855,20 @@ fn closed_key_stays_gray_after_switching_profiles_back() {
     run.engine.forget_closed(0); // и крестик работает сразу
     assert_eq!(run.saved_name(0), None);
 }
+
+#[test]
+fn window_button_shows_live_icon_while_its_picture_exists() {
+    let exe = r"C:\Tools\agent-limits.exe";
+    let values = |key: &str| {
+        json!({"session": {"kind": "window", "exe": exe, "icon": exe, "live_icon": key}}).as_object().unwrap().clone()
+    };
+    crate::live_icon::remember("engine-test-key", vec![1]);
+    assert_eq!(shown_icon(exe.into(), &values("engine-test-key")), "winicon:engine-test-key");
+    // Иконка как у exe или ключ прошлого запуска, картинки которого нет, — иконка программы.
+    assert_eq!(shown_icon(exe.into(), &values("")), exe);
+    assert_eq!(shown_icon(exe.into(), &values("old-run-key")), exe);
+    // Своя иконка кнопки важнее живой.
+    let mut custom = values("engine-test-key");
+    custom.insert("icon".into(), json!("text:AL"));
+    assert_ne!(shown_icon(exe.into(), &custom), "winicon:engine-test-key");
+}

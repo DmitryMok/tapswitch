@@ -278,6 +278,9 @@ impl Panel {
         if let Some(icon) = name.strip_prefix(crate::look::LIB) {
             return if crate::library::exists(icon) { format!("/lib/{icon}.svg") } else { String::new() };
         }
+        if let Some(key) = name.strip_prefix(crate::live_icon::PREFIX) {
+            return format!("/winicon/{key}.png");
+        }
         if let Some(hash) = name.strip_prefix(crate::look::IMG) {
             return if crate::look::is_image_hash(hash) { format!("/usericon/{hash}.png") } else { String::new() };
         }

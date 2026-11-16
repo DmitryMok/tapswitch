@@ -9,7 +9,7 @@ use windows_sys::core::BOOL;
 use windows_sys::Win32::Foundation::CloseHandle;
 use windows_sys::Win32::Graphics::Dwm::{DWMWA_CLOAKED, DwmGetWindowAttribute};
 use windows_sys::Win32::Graphics::Gdi::{
-    BI_RGB, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC, GetDIBits, ReleaseDC,
+    BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC,
 };
 use windows_sys::Win32::System::Threading::{
     AttachThreadInput, GetCurrentThreadId, OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
@@ -17,7 +17,8 @@ use windows_sys::Win32::System::Threading::{
 };
 use windows_sys::Win32::UI::Shell::SHDefExtractIconW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    BringWindowToTop, DestroyIcon, EnumWindows, GW_OWNER, GWL_EXSTYLE, GetClassNameW, GetForegroundWindow,
+    BringWindowToTop, DestroyIcon, EnumWindows, GCLP_HICON, GW_OWNER, GWL_EXSTYLE, GetClassLongPtrW, GetClassNameW,
+    GetForegroundWindow, ICON_BIG, ICON_SMALL2, SMTO_ABORTIFHUNG, SMTO_BLOCK, SendMessageTimeoutW, WM_GETICON,
     GetIconInfo, GetWindow, GetWindowLongW, GetWindowTextW, GetWindowThreadProcessId, HICON, ICONINFO, IsIconic,
     IsWindow, IsWindowVisible, MB_ICONERROR, MB_ICONINFORMATION, MB_OK, MessageBoxW, SW_RESTORE, SW_SHOWNORMAL,
     SetForegroundWindow, ShowWindow, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW,
@@ -220,26 +221,59 @@ pub fn program_icon(path: &str, size: u32) -> Option<Vec<u8>> {
         if SHDefExtractIconW(path.as_ptr(), 0, 0, &mut icon, std::ptr::null_mut(), size) != 0 || icon.is_null() {
             return None;
         }
+        let pixels = icon_pixels(icon).filter(|(w, h, _)| *w == size && *h == size).map(|(_, _, rgba)| rgba);
+        DestroyIcon(icon);
+        pixels
+    }
+}
+
+/// Текущая иконка окна — та, что на панели задач (программа может менять её на ходу):
+/// (ширина, высота, RGBA). Окно, которое не отвечает, не ждём дольше 200 мс.
+pub fn window_icon(window: i64) -> Option<(u32, u32, Vec<u8>)> {
+    let target = hwnd(window);
+    let ask = |kind: u32| -> HICON {
+        let mut result: usize = 0;
+        let ok = unsafe {
+            SendMessageTimeoutW(target, WM_GETICON, kind as usize, 0, SMTO_ABORTIFHUNG | SMTO_BLOCK, 200, &mut result)
+        };
+        if ok == 0 { std::ptr::null_mut() } else { result as HICON }
+    };
+    // Иконки окна и класса принадлежат программе — не освобождать.
+    let icon = [ask(ICON_BIG), unsafe { GetClassLongPtrW(target, GCLP_HICON) } as HICON, ask(ICON_SMALL2)]
+        .into_iter()
+        .find(|icon| !icon.is_null())?;
+    unsafe { icon_pixels(icon) }
+}
+
+/// Пиксели HICON в его собственном размере: (ширина, высота, RGBA).
+unsafe fn icon_pixels(icon: HICON) -> Option<(u32, u32, Vec<u8>)> {
+    unsafe {
         let mut info: ICONINFO = std::mem::zeroed();
-        let ok = GetIconInfo(icon, &mut info) != 0;
+        if GetIconInfo(icon, &mut info) == 0 {
+            return None;
+        }
         let mut pixels = None;
-        if ok {
+        let mut bitmap: BITMAP = std::mem::zeroed();
+        let sized = !info.hbmColor.is_null()
+            && GetObjectW(info.hbmColor, std::mem::size_of::<BITMAP>() as i32, &mut bitmap as *mut BITMAP as *mut _) != 0;
+        let (width, height) = (bitmap.bmWidth.max(0) as u32, bitmap.bmHeight.max(0) as u32);
+        if sized && width > 0 && height > 0 && width <= 1024 && height <= 1024 {
             let read = |bitmap| {
                 let mut header: BITMAPINFO = std::mem::zeroed();
                 header.bmiHeader = BITMAPINFOHEADER {
                     biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                    biWidth: size as i32,
-                    biHeight: -(size as i32), // сверху вниз
+                    biWidth: width as i32,
+                    biHeight: -(height as i32), // сверху вниз
                     biPlanes: 1,
                     biBitCount: 32,
                     biCompression: BI_RGB,
                     ..std::mem::zeroed()
                 };
-                let mut buffer = vec![0u8; (size * size * 4) as usize];
+                let mut buffer = vec![0u8; (width * height * 4) as usize];
                 let dc = GetDC(std::ptr::null_mut());
-                let lines = GetDIBits(dc, bitmap, 0, size, buffer.as_mut_ptr() as *mut _, &mut header, DIB_RGB_COLORS);
+                let lines = GetDIBits(dc, bitmap, 0, height, buffer.as_mut_ptr() as *mut _, &mut header, DIB_RGB_COLORS);
                 ReleaseDC(std::ptr::null_mut(), dc);
-                (lines == size as i32).then_some(buffer)
+                (lines == height as i32).then_some(buffer)
             };
             if let Some(mut color) = read(info.hbmColor) {
                 let has_alpha = color.chunks(4).any(|p| p[3] != 0);
@@ -251,12 +285,13 @@ pub fn program_icon(path: &str, size: u32) -> Option<Vec<u8>> {
                         pixel[3] = if mask[index * 4] == 0 { 255 } else { 0 };
                     }
                 }
-                pixels = Some(color);
+                pixels = Some((width, height, color));
             }
-            DeleteObject(info.hbmColor);
-            DeleteObject(info.hbmMask);
         }
-        DestroyIcon(icon);
+        if !info.hbmColor.is_null() {
+            DeleteObject(info.hbmColor);
+        }
+        DeleteObject(info.hbmMask);
         pixels
     }
 }
